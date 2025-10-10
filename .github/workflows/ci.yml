@@ -1,0 +1,27 @@
+name: CI
+on: [push, pull_request]
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+      - name: Install deps
+        run: |
+          python -m venv .venv
+          source .venv/bin/activate
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+      - name: Lint & Typecheck
+        run: |
+          flake8 .
+          mypy .
+      - name: Run tests
+        run: |
+          coverage run -m pytest -q
+          coverage xml
+      - name: Golden set verification
+        run: python tools/golden_check.py

@@ -1,0 +1,16 @@
+app:
+  name: "vibecoding-app"
+  domain: "example.local"
+  runtime: "python3.11"
+  entry_point: "app.run:main"
+
+data:
+  input_path: "data/input"
+  output_path: "data/output"
+
+deployment:
+  execution_mode: "container" # container | local
+  container_image: "vibecoding/app:0.1"
+
+testing:
+  coverage_threshold: 0.80

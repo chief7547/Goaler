@@ -58,6 +58,8 @@ required_files:
   - "PR_TEMPLATE.md"
   - ".gitignore"
   - "Dockerfile"
+  - "core/llm_prompt.py"
+  - "core/state_manager.py"
 
 # 강제 테스트 목록 (머지 전 필수)
 mandatory_tests:
@@ -417,6 +419,152 @@ def test_end2end_load_config():
 실제 CLI는 manifest의 CLARIFIERS.md를 읽어 인터뷰를 시작합니다.
 """
 print("docgen: placeholder - 실제 CLI에서 세부 문서 생성 로직을 실행하세요.")
+```
+
+<!-- FILE: core/llm_prompt.py -->
+```python
+"""
+This module defines the core prompt and function specifications for the LLM agent
+that handles the conversational goal-setting process.
+"""
+
+# --- System Prompt for the Goal-Setting Agent ---
+
+SYSTEM_PROMPT = """
+# Persona
+You are a friendly and expert goal-setting coach named 'Goaler'. Your tone is encouraging, clear, and helpful.
+
+# Core Task
+Your primary job is to help a user define their real-world goals through a natural conversation.
+You will dynamically build a structured 'goal object' in the background by calling the functions provided to you.
+Do not ask for all the information at once. Guide the user step-by-step.
+
+# Rules
+1.  **Start:** When a user wants to set a new goal, your first step is to call the `create_goal` function.
+2.  **Gather Metrics:** As the user describes what they want to achieve, identify measurable metrics and use the `add_metric` function to add them to the goal.
+3.  **Disambiguation (Crucial):** If a user's request is ambiguous, you MUST ask clarifying questions before calling any function.
+    -   *Example 1:* If a user says "I want to run 5km", you must ask: "Great! Is that a one-time goal to achieve, or a recurring habit you want to build, like running 5km every week?"
+    -   *Example 2:* If a user mentions a target without a clear number, you must ask for a specific value.
+4.  **Gather Motivation:** At a natural point in the conversation, ask the user *why* they want to achieve this goal and use the `set_motivation` function.
+5.  **Confirmation:** After successfully adding or updating a part of the goal (like adding a new metric), briefly confirm what you've done and show the user the current state of their goal by summarizing it.
+6.  **Finalize:** Once the user is happy with their goal and has nothing more to add, call the `finalize_goal` function to complete the process.
+"""
+
+# --- Function (Tool) Definitions for the LLM ---
+# Note: These are the function signatures the LLM will be trained to call.
+# The actual implementation will be in a different module.
+
+def create_goal(title: str):
+    """
+    Creates a new goal object in the conversation state. This is the first step.
+    
+    Args:
+        title (str): A short, descriptive title for the goal.
+    """
+    print(f"--- TOOL CALL: create_goal(title='{title}') ---")
+    # In a real implementation, this would interact with the StateManager.
+    pass
+
+def add_metric(metric_name: str, metric_type: str, target_value: float, unit: str, initial_value: float = None):
+    """
+    Adds a new measurable metric to the current goal.
+    
+    Args:
+        metric_name (str): The name of the metric (e.g., "Weight", "Running Distance").
+        metric_type (str): The type of metric. Supported types: 'INCREMENTAL', 'DECREMENTAL'.
+        target_value (float): The target value to achieve.
+        unit (str): The unit of measurement (e.g., "kg", "km", "pages").
+        initial_value (float, optional): The starting value, if applicable.
+    """
+    print(f"--- TOOL CALL: add_metric(name='{metric_name}', type='{metric_type}', target={target_value}, unit='{unit}') ---")
+    # In a real implementation, this would interact with the StateManager.
+    pass
+
+def set_motivation(text: str):
+    """
+    Sets the user's motivation or "epic meaning" for the goal.
+    
+    Args:
+        text (str): The user's description of why they want to achieve the goal.
+    """
+    print(f"--- TOOL CALL: set_motivation(text='{text}') ---")
+    # In a real implementation, this would interact with the StateManager.
+    pass
+
+def finalize_goal():
+    """
+    Finalizes the goal-setting process and saves the goal to the database.
+    """
+    print("--- TOOL CALL: finalize_goal() ---")
+    # In a real implementation, this would move the goal from the StateManager to the permanent DB.
+    pass
+```
+
+<!-- FILE: core/state_manager.py -->
+```python
+"""
+This module defines the StateManager, which is responsible for holding and 
+managing the state of a goal-setting conversation.
+"""
+
+# For a real implementation, this would use a more robust key-value store like Redis.
+# For this prototype, a simple Python dictionary is sufficient to demonstrate the logic.
+_STATE_CACHE = {}
+
+class StateManager:
+    """Manages the in-progress goal object for each conversation."""
+
+    def new_conversation(self, conversation_id: str, initial_state: dict):
+        """Starts a new conversation with an initial state."""
+        print(f"--- STATE: New conversation started: {conversation_id} ---")
+        _STATE_CACHE[conversation_id] = initial_state
+        return True
+
+    def get_state(self, conversation_id: str) -> dict | None:
+        """Retrieves the current state for a given conversation."""
+        return _STATE_CACHE.get(conversation_id)
+
+    def update_state(self, conversation_id: str, new_state: dict):
+        """Updates the state for a given conversation."""
+        if conversation_id not in _STATE_CACHE:
+            return False
+        print(f"--- STATE: State updated for {conversation_id} ---")
+        _STATE_CACHE[conversation_id].update(new_state)
+        return True
+
+    def end_conversation(self, conversation_id: str):
+        """Clears the state for a finished or expired conversation."""
+        if conversation_id in _STATE_CACHE:
+            print(f"--- STATE: Conversation ended: {conversation_id} ---")
+            del _STATE_CACHE[conversation_id]
+        return True
+
+# --- Example Usage (for demonstration) ---
+
+if __name__ == '__main__':
+    conv_id = "user123_session456"
+    state_manager = StateManager()
+
+    # 1. A new conversation starts
+    state_manager.new_conversation(conv_id, {"goal_title": "Learn Python"})
+    print("Current state:", state_manager.get_state(conv_id))
+
+    # 2. A metric is added during the conversation
+    current_goal = state_manager.get_state(conv_id)
+    if 'metrics' not in current_goal:
+        current_goal['metrics'] = []
+    current_goal['metrics'].append({
+        "metric_name": "Complete exercises",
+        "metric_type": "INCREMENTAL",
+        "target_value": 50,
+        "unit": "exercises"
+    })
+    state_manager.update_state(conv_id, current_goal)
+    print("Updated state:", state_manager.get_state(conv_id))
+
+    # 3. The conversation ends
+    state_manager.end_conversation(conv_id)
+    print("Final state:", state_manager.get_state(conv_id))
 ```
 
 ---

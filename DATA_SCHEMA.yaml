@@ -1,0 +1,10 @@
+# 간단한 데이터 스키마 예시 (YAML)
+type: object
+required:
+  - id
+  - payload
+properties:
+  id:
+    type: string
+  payload:
+    type: object
