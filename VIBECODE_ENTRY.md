@@ -29,7 +29,7 @@ preflight:
   checks:
     secrets_bound:
       type: "env_required"
-      required_keys: []
+      required_keys: ["GEMINI_API_KEY"]
 
 # lock 체크 동작
 lock_check:
@@ -154,6 +154,7 @@ pytest
 coverage
 flask
 pyyaml
+google-generativeai
 ```
 
 <!-- FILE: requirements-dev.txt -->
