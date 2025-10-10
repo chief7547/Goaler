@@ -29,7 +29,7 @@ preflight:
   checks:
     secrets_bound:
       type: "env_required"
-      required_keys: ["GEMINI_API_KEY"]
+      required_keys: ["GOOGLE_GEMINI_API_KEY"]
 
 # lock 체크 동작
 lock_check:
@@ -155,6 +155,7 @@ coverage
 flask
 pyyaml
 google-generativeai
+python-dotenv
 ```
 
 <!-- FILE: requirements-dev.txt -->
@@ -174,6 +175,10 @@ __pycache__/
 .vscode/
 .idea/
 audit/logs/
+
+# Environment variables
+.env
+.env.*
 ```
 
 <!-- FILE: CLARIFIERS.md -->
@@ -273,6 +278,7 @@ tools/preflight.py
 - --check-secrets : validate required env keys from manifest
 """
 import os, sys, json, argparse, hashlib, pathlib, yaml, subprocess
+from dotenv import load_dotenv
 
 def load_manifest(path):
     try:
@@ -307,6 +313,7 @@ def check_required_files(manifest):
     return missing
 
 def main():
+    load_dotenv()
     parser=argparse.ArgumentParser()
     parser.add_argument("--entry",required=True)
     parser.add_argument("--init-lock-if-missing",action="store_true")

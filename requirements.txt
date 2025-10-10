@@ -3,3 +3,4 @@ coverage
 flask
 pyyaml
 google-generativeai
+python-dotenv

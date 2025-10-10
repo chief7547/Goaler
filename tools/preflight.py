@@ -6,6 +6,7 @@ tools/preflight.py
 - --check-secrets : validate required env keys from manifest
 """
 import os, sys, json, argparse, hashlib, pathlib, yaml, subprocess
+from dotenv import load_dotenv
 
 def load_manifest(path):
     text = open(path,"r",encoding="utf-8").read()
@@ -37,6 +38,7 @@ def check_required_files(manifest):
     return missing
 
 def main():
+    load_dotenv()
     parser=argparse.ArgumentParser()
     parser.add_argument("--entry",required=True)
     parser.add_argument("--init-lock-if-missing",action="store_true")
