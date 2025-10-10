@@ -60,6 +60,7 @@ required_files:
   - "Dockerfile"
   - "core/llm_prompt.py"
   - "core/state_manager.py"
+  - "ARCHITECTURE.md"
 
 # 강제 테스트 목록 (머지 전 필수)
 mandatory_tests:
