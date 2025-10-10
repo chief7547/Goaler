@@ -18,14 +18,15 @@ class StateManager:
 
     def get_state(self, conversation_id: str) -> dict | None:
         """Retrieves the current state for a given conversation."""
-        return _STATE_CACHE.get(conversation_id)
+        state = _STATE_CACHE.get(conversation_id)
+        return state.copy() if state else None
 
     def update_state(self, conversation_id: str, new_state: dict):
         """Updates the state for a given conversation."""
         if conversation_id not in _STATE_CACHE:
             return False
         print(f"--- STATE: State updated for {conversation_id} ---")
-        _STATE_CACHE[conversation_id].update(new_state)
+        _STATE_CACHE[conversation_id] = new_state
         return True
 
     def end_conversation(self, conversation_id: str):

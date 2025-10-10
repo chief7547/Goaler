@@ -1,7 +1,6 @@
-"""
-This module defines the core prompt and function specifications for the LLM agent
-that handles the conversational goal-setting process.
-"""
+from .state_manager import StateManager
+
+# --- System Prompt for the Goal-Setting Agent ---
 
 # --- System Prompt for the Goal-Setting Agent ---
 
@@ -29,16 +28,20 @@ Do not ask for all the information at once. Guide the user step-by-step.
 # Note: These are the function signatures the LLM will be trained to call.
 # The actual implementation will be in a different module.
 
-def create_goal(title: str):
+def create_goal(state_manager: 'StateManager', conversation_id: str, title: str):
     """
     Creates a new goal object in the conversation state. This is the first step.
     
     Args:
         title (str): A short, descriptive title for the goal.
     """
-    print(f"--- TOOL CALL: create_goal(title='{title}') ---")
-    # In a real implementation, this would interact with the StateManager.
-    pass
+    initial_state = {
+        "goal_title": title,
+        "metrics": [],
+        "motivation": None
+    }
+    state_manager.new_conversation(conversation_id, initial_state)
+
 
 def add_metric(metric_name: str, metric_type: str, target_value: float, unit: str, initial_value: float = None):
     """
