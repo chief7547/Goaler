@@ -1,11 +1,9 @@
-"""
-This module defines the StateManager, which is responsible for holding and 
-managing the state of a goal-setting conversation.
-"""
+"""Manage in-memory conversation state for the goal-setting agent."""
 
-# For a real implementation, this would use a more robust key-value store like Redis.
-# For this prototype, a simple Python dictionary is sufficient to demonstrate the logic.
+# For a production system we would use a persistent store (Redis, database, etc.).
+# The simple dictionary is enough for this prototype and keeps tests lightweight.
 _STATE_CACHE = {}
+
 
 class StateManager:
     """Manages the in-progress goal object for each conversation."""
@@ -38,27 +36,25 @@ class StateManager:
 
 # --- Example Usage (for demonstration) ---
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     conv_id = "user123_session456"
     state_manager = StateManager()
 
-    # 1. A new conversation starts
     state_manager.new_conversation(conv_id, {"goal_title": "Learn Python"})
     print("Current state:", state_manager.get_state(conv_id))
 
-    # 2. A metric is added during the conversation
     current_goal = state_manager.get_state(conv_id)
-    if 'metrics' not in current_goal:
-        current_goal['metrics'] = []
-    current_goal['metrics'].append({
-        "metric_name": "Complete exercises",
-        "metric_type": "INCREMENTAL",
-        "target_value": 50,
-        "unit": "exercises"
-    })
-    state_manager.update_state(conv_id, current_goal)
-    print("Updated state:", state_manager.get_state(conv_id))
+    if current_goal is not None:
+        current_goal.setdefault("metrics", []).append(
+            {
+                "metric_name": "Complete exercises",
+                "metric_type": "INCREMENTAL",
+                "target_value": 50,
+                "unit": "exercises",
+            }
+        )
+        state_manager.update_state(conv_id, current_goal)
+        print("Updated state:", state_manager.get_state(conv_id))
 
-    # 3. The conversation ends
     state_manager.end_conversation(conv_id)
     print("Final state:", state_manager.get_state(conv_id))

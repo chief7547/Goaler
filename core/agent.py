@@ -1,12 +1,16 @@
-"""
-This module contains the GoalSettingAgent, which orchestrates the entire
-conversational goal-setting process.
-"""
+"""Core agent that orchestrates the goal-setting conversation."""
+
+from __future__ import annotations
+
+from textwrap import dedent
 
 from .state_manager import StateManager
 
 
-def _coerce_metric_details(metric_details: dict | None, metric_kwargs: dict) -> dict | None:
+def _coerce_metric_details(
+    metric_details: dict | None,
+    metric_kwargs: dict,
+) -> dict | None:
     """Normalize metric payloads coming from the LLM tool call."""
 
     if metric_details is not None:
@@ -15,92 +19,92 @@ def _coerce_metric_details(metric_details: dict | None, metric_kwargs: dict) -> 
     if not metric_kwargs:
         return None
 
-    allowed_keys = {"metric_name", "metric_type", "target_value", "unit", "initial_value"}
-    normalized = {k: v for k, v in metric_kwargs.items() if k in allowed_keys}
-    if {"metric_name", "metric_type", "target_value", "unit"}.issubset(normalized):
-        return normalized
+    allowed = {"metric_name", "metric_type", "target_value", "unit", "initial_value"}
+    filtered = {key: value for key, value in metric_kwargs.items() if key in allowed}
+    required = {"metric_name", "metric_type", "target_value", "unit"}
+
+    if required.issubset(filtered):
+        return filtered
 
     return None
 
-SYSTEM_PROMPT = """
-# Persona
-You are a friendly and expert goal-setting coach named 'Goaler'. Your tone is encouraging, clear, and helpful.
 
-# Core Task
-Your primary job is to help a user define their real-world goals through a natural conversation.
-You will dynamically build a structured 'goal object' in the background by calling the functions provided to you.
-Do not ask for all the information at once. Guide the user step-by-step.
+SYSTEM_PROMPT = dedent(
+    """
+    # Persona
+    You are a friendly, expert goal-setting coach named "Goaler".
+    Keep your tone encouraging, clear, and genuinely helpful.
 
-# Rules
-1.  **Start:** When a user wants to set a new goal, your first step is to call the `create_goal` function.
-2.  **Gather Metrics:** As the user describes what they want to achieve, identify measurable metrics and use the `add_metric` function to add them to the goal.
-3.  **Disambiguation (Crucial):** If a user's request is ambiguous, you MUST ask clarifying questions before calling any function.
-    -   *Example 1:* If a user says "I want to run 5km", you must ask: "Great! Is that a one-time goal to achieve, or a recurring habit you want to build, like running 5km every week?"
-    -   *Example 2:* If a user mentions a target without a clear number, you must ask for a specific value.
-4.  **Gather Motivation:** At a natural point in the conversation, ask the user *why* they want to achieve this goal and use the `set_motivation` function.
-5.  **Confirmation:** After successfully adding or updating a part of the goal (like adding a new metric), briefly confirm what you've done and show the user the current state of their goal by summarizing it.
-6.  **Finalize:** Once the user is happy with their goal and has nothing more to add, call the `finalize_goal` function to complete the process.
-"""
+    # Core Task
+    Guide the user through a natural conversation to define a real-world goal.
+    Build a structured goal object incrementally by calling the available tools.
+    Never demand all information at once—advance step by step.
+
+    # Rules
+    1. Start by calling `create_goal` when a new goal is requested.
+    2. Collect measurable details and use `add_metric` for each metric you discover.
+    3. Resolve ambiguity before acting. Ask clarifying questions when the request is unclear.
+       - Example: “I want to run 5km.” → clarify whether it is a one-time target or recurring habit.
+       - Example: Vague numbers or goals → ask for specific targets or units.
+    4. Ask about the user's motivation at a natural point, then call `set_motivation`.
+    5. After each change, briefly confirm what changed and summarise the current goal state.
+    6. When the user is satisfied, call `finalize_goal` to complete the process.
+    """
+)
+
 
 class GoalSettingAgent:
-    """
-    The agent that manages the conversation and interacts with the LLM tools.
-    """
-    def __init__(self):
+    """Manage the conversation state while responding to tool calls."""
+
+    def __init__(self) -> None:
         self.state_manager = StateManager()
 
-    def create_goal(self, conversation_id: str, title: str):
-        """
-        Creates a new goal, initializing it in the state manager.
-        """
-        initial_state = {
-            "goal_title": title,
-            "metrics": [],
-            "motivation": None
-        }
+    def create_goal(self, conversation_id: str, title: str) -> dict | None:
+        """Initialise a new goal in the state manager."""
+
+        initial_state = {"goal_title": title, "metrics": [], "motivation": None}
         self.state_manager.new_conversation(conversation_id, initial_state)
         return self.state_manager.get_state(conversation_id)
 
-    def add_metric(self, conversation_id: str, metric_details: dict | None = None, **metric_kwargs):
-        """Adds a new metric to the current goal state."""
+    def add_metric(
+        self,
+        conversation_id: str,
+        metric_details: dict | None = None,
+        **metric_kwargs,
+    ) -> dict | None:
+        """Append a metric to the goal state if enough information is provided."""
 
         current_state = self.state_manager.get_state(conversation_id)
         if not current_state:
             return None
 
-        normalized_metric = _coerce_metric_details(metric_details, metric_kwargs)
-        if normalized_metric is None:
-            # Nothing to add yet, keep the current snapshot so the LLM can recover.
+        normalized = _coerce_metric_details(metric_details, metric_kwargs)
+        if normalized is None:
+            # Nothing to add yet; keep the snapshot so the LLM can recover.
             return current_state
 
-        current_state.setdefault("metrics", []).append(normalized_metric)
-
+        current_state.setdefault("metrics", []).append(normalized)
         self.state_manager.update_state(conversation_id, current_state)
         return current_state
 
-    def set_motivation(self, conversation_id: str, text: str):
-        """
-        Sets the motivation for the current goal.
-        """
+    def set_motivation(self, conversation_id: str, text: str) -> dict | None:
+        """Record the motivation associated with the current goal."""
+
         current_state = self.state_manager.get_state(conversation_id)
         if not current_state:
             return None
-        
-        # This is the line that was missing.
+
         current_state["motivation"] = text
-        
         self.state_manager.update_state(conversation_id, current_state)
         return current_state
 
-    def finalize_goal(self, conversation_id: str):
-        """
-        Finalizes the goal, saves it to a permanent store (future work),
-        and clears the conversation state.
-        """
+    def finalize_goal(self, conversation_id: str) -> bool:
+        """Log the final state and clear the conversation cache."""
+
         final_state = self.state_manager.get_state(conversation_id)
-        
-        # TODO: Add logic here to save the final_state to a permanent database.
-        print(f"--- DB: Saving final state for {conversation_id} to database: {final_state} ---")
-        
+        print(
+            "--- DB: Saving final state for"
+            f" {conversation_id} to database: {final_state} ---"
+        )
         self.state_manager.end_conversation(conversation_id)
         return True
