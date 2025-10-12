@@ -59,6 +59,7 @@ required_files:
   - "PR_TEMPLATE.md"
   - ".gitignore"
   - "Dockerfile"
+  - "core/__init__.py"
   - "core/llm_prompt.py"
   - "core/state_manager.py"
   - "ARCHITECTURE.md"
@@ -510,6 +511,17 @@ def test_end2end_load_config():
 실제 CLI는 manifest의 CLARIFIERS.md를 읽어 인터뷰를 시작합니다.
 """
 print("docgen: placeholder - 실제 CLI에서 세부 문서 생성 로직을 실행하세요.")
+```
+
+<!-- FILE: core/__init__.py -->
+```python
+"""Core package for Goaler."""
+
+__all__ = [
+    "agent",
+    "state_manager",
+    "llm_prompt",
+]
 ```
 
 <!-- FILE: core/llm_prompt.py -->
