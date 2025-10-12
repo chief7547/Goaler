@@ -1,24 +1,33 @@
 #!/usr/bin/env python3
-"""
-tools/lock_check.py
-- 락 파일 생성은 --init 옵션이 있어야만 허용됩니다.
-"""
-import sys, os, json, argparse, hashlib, pathlib
-LOCK="audit/manifest.lock"
+"""Manage the manifest lock file."""
 
-def main():
-    parser=argparse.ArgumentParser()
-    parser.add_argument("--init",action="store_true")
-    args=parser.parse_args()
-    if not os.path.exists(LOCK):
+import argparse
+import json
+import sys
+from pathlib import Path
+
+LOCK = Path("audit/manifest.lock")
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--init", action="store_true")
+    args = parser.parse_args()
+
+    if not LOCK.exists():
         if args.init:
-            os.makedirs(os.path.dirname(LOCK), exist_ok=True)
-            json.dump({"lock":"created"}, open(LOCK,"w"))
+            LOCK.parent.mkdir(parents=True, exist_ok=True)
+            LOCK.write_text(json.dumps({"lock": "created"}), encoding="utf-8")
             print("Lock created")
         else:
-            print("LOCK missing. Run with --init to create after review.", file=sys.stderr)
+            print(
+                "LOCK missing. Run with --init to create after review.",
+                file=sys.stderr,
+            )
             sys.exit(2)
     else:
         print("Lock present")
-if __name__=="__main__":
+
+
+if __name__ == "__main__":
     main()

@@ -1,33 +1,53 @@
 #!/usr/bin/env python3
-"""
-tools/golden_check.py
-- manifest의 golden_checks를 읽어 sha256 체크를 수행합니다.
-- 실패 시 non-zero exit를 반환해 CI를 실패시킵니다.
-"""
-import hashlib, yaml, sys, pathlib, re
-def load_manifest(path="VIBECODE_ENTRY.md"):
-    txt=open(path,"r",encoding="utf-8").read()
-    s=txt.find("```yaml")
-    e=txt.find("```",s+6)
-    return yaml.safe_load(txt[s+6:e])
+"""Verify golden files against the manifest."""
 
-def sha(path):
-    b=pathlib.Path(path).read_bytes()
-    return hashlib.sha256(b).hexdigest()
+from __future__ import annotations
 
-def main():
-    manifest=load_manifest()
-    golden = manifest.get("golden_checks",{})
-    bad=[]
-    for p,h in golden.items():
-        if not pathlib.Path(p).exists():
-            bad.append(f"missing:{p}")
+import hashlib
+import pathlib
+import sys
+
+import yaml
+
+
+def load_manifest(path: str = "VIBECODE_ENTRY.md") -> dict:
+    """Load the YAML manifest block from the entry file."""
+
+    text = pathlib.Path(path).read_text(encoding="utf-8")
+    start = text.find("```yaml")
+    if start == -1:
+        raise SystemExit("manifest block not found")
+    end = text.find("```", start + 6)
+    if end == -1:
+        raise SystemExit("manifest block terminator not found")
+    return yaml.safe_load(text[start + 6 : end])
+
+
+def digest(path: pathlib.Path) -> str:
+    """Return the sha256 digest for the given file path."""
+
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def main() -> None:
+    manifest = load_manifest()
+    golden = manifest.get("golden_checks", {})
+    failures: list[str] = []
+
+    for rel_path, expected_hash in golden.items():
+        path = pathlib.Path(rel_path)
+        if not path.exists():
+            failures.append(f"missing:{rel_path}")
             continue
-        if sha(p)!=h:
-            bad.append(f"mismatch:{p}")
-    if bad:
-        print("Golden check failed:", bad)
+        if digest(path) != expected_hash:
+            failures.append(f"mismatch:{rel_path}")
+
+    if failures:
+        print("Golden check failed:", failures)
         sys.exit(2)
+
     print("Golden verified")
-if __name__=="__main__":
+
+
+if __name__ == "__main__":
     main()

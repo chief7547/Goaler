@@ -303,132 +303,182 @@ services:
 <!-- FILE: tools/preflight.py -->
 ```python
 #!/usr/bin/env python3
-"""
-tools/preflight.py
-- entry: path to VIBECODE_ENTRY.md
-- --init-lock-if-missing : create lock only if explicitly asked
-- --check-secrets : validate required env keys from manifest
-"""
-import os, sys, json, argparse, hashlib, pathlib, yaml, subprocess
+"""Preflight checks for the Vibecoding manifest."""
+
+from __future__ import annotations
+
+import argparse
+import os
+import pathlib
+import sys
+
+import yaml
 from dotenv import load_dotenv
 
-def load_manifest(path):
+
+def load_manifest(path: str) -> dict:
+    """Extract the YAML manifest block from the entry file."""
+
+    text = pathlib.Path(path).read_text(encoding="utf-8")
     try:
-        with open(path, 'rb') as f:
-            text = f.read().decode('utf-8-sig')
         manifest_section = text.split("## 매니페스트")[1].split("---")[0]
-        start = manifest_section.find("```yaml")
-        if start==-1: raise SystemExit("manifest block not found")
-        end = manifest_section.find("```", start+6)
-        yaml_text = manifest_section[start+6:end]
-        # print("--- YAML DUMP ---")
-        # print(yaml_text)
-        # print("--- END DUMP ---")
-        return yaml.safe_load(yaml_text)
-    except Exception as e:
-        print(f"Error parsing manifest: {e}")
-        sys.exit(1)
+    except IndexError as exc:
+        raise SystemExit("manifest section not found") from exc
 
-def check_secrets(manifest):
-    req = manifest.get("preflight",{}).get("checks",{}).get("secrets_bound",{}).get("required_keys",[])
-    missing=[]
-    for k in req:
-        if os.environ.get(k) is None:
-            missing.append(k)
+    start = manifest_section.find("```yaml\n")
+    if start == -1:
+        raise SystemExit("manifest code fence not found")
+
+    end = manifest_section.find("```", start + 7)
+    if end == -1:
+        raise SystemExit("manifest code fence terminator not found")
+
+    yaml_text = manifest_section[start + 7 : end].strip()
+    return yaml.safe_load(yaml_text)
+
+
+def check_secrets(manifest: dict) -> list[str]:
+    """Return missing environment variables defined in the manifest."""
+
+    required = (
+        manifest.get("preflight", {})
+        .get("checks", {})
+        .get("secrets_bound", {})
+        .get("required_keys", [])
+    )
+    return [key for key in required if os.environ.get(key) is None]
+
+
+def check_required_files(manifest: dict) -> list[str]:
+    """Return missing files that the manifest expects to exist."""
+
+    missing: list[str] = []
+    for path_str in manifest.get("required_files", []):
+        if not pathlib.Path(path_str).exists():
+            missing.append(path_str)
     return missing
 
-def check_required_files(manifest):
-    missing=[]
-    for p in manifest.get("required_files",[]):
-        if not pathlib.Path(p).exists():
-            missing.append(p)
-    return missing
 
-def main():
+def main() -> None:
     load_dotenv()
-    parser=argparse.ArgumentParser()
-    parser.add_argument("--entry",required=True)
-    parser.add_argument("--init-lock-if-missing",action="store_true")
-    parser.add_argument("--check-secrets",action="store_true")
-    args=parser.parse_args()
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--entry", required=True)
+    parser.add_argument("--init-lock-if-missing", action="store_true")
+    parser.add_argument("--check-secrets", action="store_true")
+    args = parser.parse_args()
+
     manifest = load_manifest(args.entry)
+
     if args.check_secrets:
         missing = check_secrets(manifest)
         if missing:
             print("Missing required env keys:", missing)
             sys.exit(3)
+
     missing_files = check_required_files(manifest)
     if missing_files:
         print("Missing files expected to be generated:", missing_files)
+
     # Lock behavior delegated to tools/lock_check.py
     print("Preflight OK")
-if __name__=="__main__":
+
+
+if __name__ == "__main__":
     main()
 ```
 
 <!-- FILE: tools/lock_check.py -->
 ```python
 #!/usr/bin/env python3
-"""
-tools/lock_check.py
-- 락 파일 생성은 --init 옵션이 있어야만 허용됩니다.
-"""
-import sys, os, json, argparse, hashlib, pathlib
-LOCK="audit/manifest.lock"
+"""Manage the manifest lock file."""
 
-def main():
-    parser=argparse.ArgumentParser()
-    parser.add_argument("--init",action="store_true")
-    args=parser.parse_args()
-    if not os.path.exists(LOCK):
+import argparse
+import json
+import sys
+from pathlib import Path
+
+LOCK = Path("audit/manifest.lock")
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--init", action="store_true")
+    args = parser.parse_args()
+
+    if not LOCK.exists():
         if args.init:
-            os.makedirs(os.path.dirname(LOCK), exist_ok=True)
-            json.dump({"lock":"created"}, open(LOCK,"w"))
+            LOCK.parent.mkdir(parents=True, exist_ok=True)
+            LOCK.write_text(json.dumps({"lock": "created"}), encoding="utf-8")
             print("Lock created")
         else:
-            print("LOCK missing. Run with --init to create after review.", file=sys.stderr)
+            print(
+                "LOCK missing. Run with --init to create after review.",
+                file=sys.stderr,
+            )
             sys.exit(2)
     else:
         print("Lock present")
-if __name__=="__main__":
+
+
+if __name__ == "__main__":
     main()
 ```
 
 <!-- FILE: tools/golden_check.py -->
 ```python
 #!/usr/bin/env python3
-"""
-tools/golden_check.py
-- manifest의 golden_checks를 읽어 sha256 체크를 수행합니다.
-- 실패 시 non-zero exit를 반환해 CI를 실패시킵니다.
-"""
-import hashlib, yaml, sys, pathlib, re
-def load_manifest(path="VIBECODE_ENTRY.md"):
-    txt=open(path,"r",encoding="utf-8").read()
-    s=txt.find("```yaml")
-    e=txt.find("```",s+6)
-    return yaml.safe_load(txt[s+6:e])
+"""Verify golden files against the manifest."""
 
-def sha(path):
-    b=pathlib.Path(path).read_bytes()
-    return hashlib.sha256(b).hexdigest()
+from __future__ import annotations
+
+import hashlib
+import pathlib
+import sys
+
+import yaml
 
 
-def main():
-    manifest=load_manifest()
-    golden = manifest.get("golden_checks",{})
-    bad=[]
-    for p,h in golden.items():
-        if not pathlib.Path(p).exists():
-            bad.append(f"missing:{p}")
+def load_manifest(path: str = "VIBECODE_ENTRY.md") -> dict:
+    """Load the YAML manifest block from the entry file."""
+
+    text = pathlib.Path(path).read_text(encoding="utf-8")
+    start = text.find("```yaml")
+    if start == -1:
+        raise SystemExit("manifest block not found")
+    end = text.find("```", start + 6)
+    if end == -1:
+        raise SystemExit("manifest block terminator not found")
+    return yaml.safe_load(text[start + 6 : end])
+
+
+def digest(path: pathlib.Path) -> str:
+    """Return the sha256 digest for the given file path."""
+
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def main() -> None:
+    manifest = load_manifest()
+    golden = manifest.get("golden_checks", {})
+    failures: list[str] = []
+
+    for rel_path, expected_hash in golden.items():
+        path = pathlib.Path(rel_path)
+        if not path.exists():
+            failures.append(f"missing:{rel_path}")
             continue
-        if sha(p)!=h:
-            bad.append(f"mismatch:{p}")
-    if bad:
-        print("Golden check failed:", bad)
+        if digest(path) != expected_hash:
+            failures.append(f"mismatch:{rel_path}")
+
+    if failures:
+        print("Golden check failed:", failures)
         sys.exit(2)
+
     print("Golden verified")
-if __name__=="__main__":
+
+
+if __name__ == "__main__":
     main()
 ```
 
