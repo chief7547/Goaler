@@ -46,6 +46,7 @@ required_files:
   - "DATA_SCHEMA.yaml"
   - "requirements.txt"
   - "requirements-dev.txt"
+  - ".flake8"
   - ".github/workflows/ci.yml"
   - "docker-compose.ci.yml"
   - "tools/preflight.py"
@@ -188,6 +189,13 @@ python-dotenv
 flake8
 mypy
 black
+```
+
+<!-- FILE: .flake8 -->
+```
+[flake8]
+max-line-length = 110
+extend-ignore = E203
 ```
 
 <!-- FILE: .gitignore -->
