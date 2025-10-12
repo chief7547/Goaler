@@ -274,10 +274,9 @@ jobs:
           python-version: "3.11"
       - name: Install deps
         run: |
-          python -m venv .venv
-          source .venv/bin/activate
-          pip install -r requirements.txt
-          pip install -r requirements-dev.txt
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip install -r requirements-dev.txt
       - name: Lint & Typecheck
         run: |
           flake8 .
