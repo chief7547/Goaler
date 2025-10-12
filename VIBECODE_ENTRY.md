@@ -154,7 +154,7 @@ pytest
 coverage
 flask
 pyyaml
-google-generativeai
+openai
 python-dotenv
 ```
 

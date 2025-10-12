@@ -1,0 +1,205 @@
+"""Main entrypoint for the Goaler conversational agent."""
+
+import json
+import os
+import uuid
+
+from dotenv import load_dotenv
+from openai import OpenAI
+
+from core.agent import GoalSettingAgent
+
+
+def _use_mock_mode() -> bool:
+    """Decide whether to run with the lightweight mock loop."""
+
+    flag = os.getenv("GOALER_USE_MOCK")
+    if flag is None:
+        # Manifest 기본값(mock_mode: true)을 그대로 따릅니다.
+        return True
+    return flag.strip().lower() not in {"0", "false", "no"}
+
+
+def _run_mock_conversation():
+    """Fallback loop that emulates the agent without external API calls."""
+
+    print("--- Goaler (OpenAI) 초기화 중... ---")
+    print("--- Goaler (OpenAI) 준비 완료. 대화를 시작하세요. (종료하려면 'exit' 입력) ---")
+    print("(mock 모드 활성화: OpenAI 호출 없이 대화를 시뮬레이션합니다.)")
+
+    agent = GoalSettingAgent()
+    conversation_id = f"mock_{uuid.uuid4()}"
+
+    greeted = False
+    goal_created = False
+
+    while True:
+        user_input = input("> ")
+        if user_input.lower() == "exit":
+            print("대화를 종료합니다.")
+            break
+
+        if not greeted:
+            print("Goaler: 안녕하세요! 목표 설정을 도와드릴게요. 이루고 싶은 목표가 있다면 말씀해주세요.")
+            greeted = True
+            continue
+
+        if not goal_created:
+            title = user_input.strip() or "나의 목표"
+            agent.create_goal(conversation_id=conversation_id, title=title)
+            print(f"Goaler: '{title}' 목표를 생성했어요. 진행 상황을 어떻게 측정하면 좋을까요?")
+            goal_created = True
+            continue
+
+        print("Goaler: 좋아요! 추가로 기록하고 싶은 내용이 있다면 계속 말씀해주세요. 마치려면 'exit'를 입력하세요.")
+
+
+def _run_openai_conversation():
+    """Runs the main conversational loop using the OpenAI API."""
+
+    print("--- Goaler (OpenAI) 초기화 중... ---")
+
+    try:
+        client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    except Exception as exc:
+        print(f"오류: OpenAI 클라이언트 초기화에 실패했습니다. OPENAI_API_KEY를 확인하세요. 에러: {exc}")
+        return
+
+    agent = GoalSettingAgent()
+    agent_tools = {
+        "create_goal": agent.create_goal,
+        "add_metric": agent.add_metric,
+        "set_motivation": agent.set_motivation,
+        "finalize_goal": agent.finalize_goal,
+    }
+
+    tools_json_schema = [
+        {
+            "type": "function",
+            "function": {
+                "name": "create_goal",
+                "description": "Creates a new goal. This should be the first step.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "title": {
+                            "type": "string",
+                            "description": "A short, descriptive title for the goal.",
+                        }
+                    },
+                    "required": ["title"],
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "add_metric",
+                "description": "Adds a new measurable metric to the current goal.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "metric_details": {
+                            "type": "object",
+                            "description": "Full metric payload to append to the goal.",
+                        }
+                    },
+                    "required": ["metric_details"],
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "set_motivation",
+                "description": "Sets the user's motivation for the goal.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "text": {
+                            "type": "string",
+                            "description": "The user's motivation.",
+                        }
+                    },
+                    "required": ["text"],
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "finalize_goal",
+                "description": "Finalizes the goal-setting process.",
+                "parameters": {"type": "object", "properties": {}},
+            },
+        },
+    ]
+
+    conversation_id = f"conv_{uuid.uuid4()}"
+    messages = []
+
+    print("--- Goaler (OpenAI) 준비 완료. 대화를 시작하세요. (종료하려면 'exit' 입력) ---")
+
+    while True:
+        user_input = input("> ")
+        if user_input.lower() == "exit":
+            print("대화를 종료합니다.")
+            break
+
+        messages.append({"role": "user", "content": user_input})
+
+        while True:
+            response = client.chat.completions.create(
+                model="gpt-5-mini",
+                messages=messages,
+                tools=tools_json_schema,
+                tool_choice="auto",
+            )
+            response_message = response.choices[0].message
+
+            if not response_message.tool_calls:
+                final_text = response_message.content
+                if final_text:
+                    print(f"Goaler: {final_text}")
+                    messages.append({"role": "assistant", "content": final_text})
+                break
+
+            messages.append(response_message)
+            for tool_call in response_message.tool_calls:
+                function_name = tool_call.function.name
+                agent_method = agent_tools.get(function_name)
+
+                if not agent_method:
+                    print(f"오류: 알 수 없는 함수({function_name}) 호출을 시도했습니다.")
+                    continue
+
+                function_args = json.loads(tool_call.function.arguments or "{}")
+                function_args["conversation_id"] = conversation_id
+                print(
+                    f"--- TOOL CALL: {function_name}({function_args}) with conv_id: {conversation_id} ---"
+                )
+
+                tool_response = agent_method(**function_args)
+
+                messages.append(
+                    {
+                        "tool_call_id": tool_call.id,
+                        "role": "tool",
+                        "name": function_name,
+                        "content": json.dumps(tool_response),
+                    }
+                )
+
+
+def run_conversation():
+    """Entry point that selects mock or OpenAI-backed chat loop."""
+
+    load_dotenv()
+    if _use_mock_mode():
+        _run_mock_conversation()
+    else:
+        _run_openai_conversation()
+
+
+if __name__ == "__main__":
+    run_conversation()
