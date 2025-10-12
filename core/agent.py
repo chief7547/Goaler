@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from textwrap import dedent
+from typing import Any
 
 from .state_manager import StateManager
 
@@ -62,7 +63,11 @@ class GoalSettingAgent:
     def create_goal(self, conversation_id: str, title: str) -> dict | None:
         """Initialise a new goal in the state manager."""
 
-        initial_state = {"goal_title": title, "metrics": [], "motivation": None}
+        initial_state: dict[str, Any] = {
+            "goal_title": title,
+            "metrics": [],
+            "motivation": None,
+        }
         self.state_manager.new_conversation(conversation_id, initial_state)
         return self.state_manager.get_state(conversation_id)
 
