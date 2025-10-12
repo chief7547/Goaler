@@ -34,6 +34,7 @@ class StateManager:
             del _STATE_CACHE[conversation_id]
         return True
 
+
 # --- Example Usage (for demonstration) ---
 
 if __name__ == "__main__":
