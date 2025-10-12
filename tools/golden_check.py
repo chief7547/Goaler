@@ -14,13 +14,22 @@ def load_manifest(path: str = "VIBECODE_ENTRY.md") -> dict:
     """Load the YAML manifest block from the entry file."""
 
     text = pathlib.Path(path).read_text(encoding="utf-8")
-    start = text.find("```yaml")
+    marker = "## 매니페스트"
+    marker_index = text.find(marker)
+    if marker_index == -1:
+        raise SystemExit("manifest section not found")
+
+    start = text.find("```yaml", marker_index)
     if start == -1:
         raise SystemExit("manifest block not found")
-    end = text.find("```", start + 6)
+
+    block_start = text.find("\n", start) + 1
+    end = text.find("```", block_start)
     if end == -1:
         raise SystemExit("manifest block terminator not found")
-    return yaml.safe_load(text[start + 6 : end])
+
+    yaml_text = text[block_start:end].lstrip("\n")
+    return yaml.safe_load(yaml_text)
 
 
 def digest(path: pathlib.Path) -> str:
