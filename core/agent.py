@@ -5,6 +5,23 @@ conversational goal-setting process.
 
 from .state_manager import StateManager
 
+
+def _coerce_metric_details(metric_details: dict | None, metric_kwargs: dict) -> dict | None:
+    """Normalize metric payloads coming from the LLM tool call."""
+
+    if metric_details is not None:
+        return metric_details
+
+    if not metric_kwargs:
+        return None
+
+    allowed_keys = {"metric_name", "metric_type", "target_value", "unit", "initial_value"}
+    normalized = {k: v for k, v in metric_kwargs.items() if k in allowed_keys}
+    if {"metric_name", "metric_type", "target_value", "unit"}.issubset(normalized):
+        return normalized
+
+    return None
+
 SYSTEM_PROMPT = """
 # Persona
 You are a friendly and expert goal-setting coach named 'Goaler'. Your tone is encouraging, clear, and helpful.
@@ -44,16 +61,20 @@ class GoalSettingAgent:
         self.state_manager.new_conversation(conversation_id, initial_state)
         return self.state_manager.get_state(conversation_id)
 
-    def add_metric(self, conversation_id: str, metric_details: dict):
-        """
-        Adds a new metric to the current goal state.
-        """
+    def add_metric(self, conversation_id: str, metric_details: dict | None = None, **metric_kwargs):
+        """Adds a new metric to the current goal state."""
+
         current_state = self.state_manager.get_state(conversation_id)
         if not current_state:
             return None
-        
-        current_state["metrics"].append(metric_details)
-        
+
+        normalized_metric = _coerce_metric_details(metric_details, metric_kwargs)
+        if normalized_metric is None:
+            # Nothing to add yet, keep the current snapshot so the LLM can recover.
+            return current_state
+
+        current_state.setdefault("metrics", []).append(normalized_metric)
+
         self.state_manager.update_state(conversation_id, current_state)
         return current_state
 

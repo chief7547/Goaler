@@ -7,7 +7,7 @@ import uuid
 from dotenv import load_dotenv
 from openai import OpenAI
 
-from core.agent import GoalSettingAgent
+from core.agent import GoalSettingAgent, SYSTEM_PROMPT
 
 
 def _use_mock_mode() -> bool:
@@ -102,9 +102,22 @@ def _run_openai_conversation():
                         "metric_details": {
                             "type": "object",
                             "description": "Full metric payload to append to the goal.",
-                        }
+                            "properties": {
+                                "metric_name": {"type": "string"},
+                                "metric_type": {"type": "string"},
+                                "target_value": {"type": "number"},
+                                "unit": {"type": "string"},
+                                "initial_value": {"type": "number"},
+                            },
+                            "required": ["metric_name", "metric_type", "target_value", "unit"],
+                        },
+                        "metric_name": {"type": "string"},
+                        "metric_type": {"type": "string"},
+                        "target_value": {"type": "number"},
+                        "unit": {"type": "string"},
+                        "initial_value": {"type": "number"},
                     },
-                    "required": ["metric_details"],
+                    "required": [],
                 },
             },
         },
@@ -136,7 +149,7 @@ def _run_openai_conversation():
     ]
 
     conversation_id = f"conv_{uuid.uuid4()}"
-    messages = []
+    messages = [{"role": "system", "content": SYSTEM_PROMPT}]
 
     print("--- Goaler (OpenAI) 준비 완료. 대화를 시작하세요. (종료하려면 'exit' 입력) ---")
 
@@ -175,6 +188,26 @@ def _run_openai_conversation():
 
                 function_args = json.loads(tool_call.function.arguments or "{}")
                 function_args["conversation_id"] = conversation_id
+
+                if (
+                    function_name == "add_metric"
+                    and "metric_details" not in function_args
+                    and {"metric_name", "metric_type", "target_value", "unit"}.issubset(
+                        function_args.keys()
+                    )
+                ):
+                    function_args["metric_details"] = {
+                        key: function_args[key]
+                        for key in (
+                            "metric_name",
+                            "metric_type",
+                            "target_value",
+                            "unit",
+                            "initial_value",
+                        )
+                        if key in function_args
+                    }
+
                 print(
                     f"--- TOOL CALL: {function_name}({function_args}) with conv_id: {conversation_id} ---"
                 )

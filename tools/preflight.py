@@ -5,7 +5,7 @@ tools/preflight.py
 - --init-lock-if-missing : create lock only if explicitly asked
 - --check-secrets : validate required env keys from manifest
 """
-import os, sys, json, argparse, hashlib, pathlib, yaml, subprocess
+import os, sys, argparse, pathlib, yaml
 from dotenv import load_dotenv
 
 def load_manifest(path):
