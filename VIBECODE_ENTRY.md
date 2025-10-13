@@ -176,14 +176,52 @@ testing:
 
 <!-- FILE: DATA_SCHEMA.yaml -->
 ```yaml
-# 목표/메트릭/대화 기록 구조 (YAML)
+# Goaler 저장소 구조 (YAML)
+users:
+  type: object
+  required: [user_id, provider_type, provider_id]
+  properties:
+    user_id:
+      type: string
+    provider_type:
+      enum: [google, kakao, apple, local]
+    provider_id:
+      type: string
+    display_name:
+      type: string
+    created_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time
+
+conversations:
+  type: object
+  required: [conversation_id, user_id]
+  properties:
+    conversation_id:
+      type: string
+    user_id:
+      type: string
+    status:
+      enum: [ACTIVE, CLOSED]
+    created_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time
+
 goals:
   type: object
-  required: [goal_id, title, goal_type]
+  required: [goal_id, user_id, title, goal_type]
   properties:
     goal_id:
       type: string
     user_id:
+      type: string
+    conversation_id:
       type: string
     title:
       type: string
@@ -242,6 +280,28 @@ conversation_logs:
       enum: [user, assistant, tool]
     content:
       type: string
+    token_count:
+      type: integer
+    created_at:
+      type: string
+      format: date-time
+
+conversation_summaries:
+  type: object
+  required: [summary_id, conversation_id, summary_text]
+  properties:
+    summary_id:
+      type: string
+    conversation_id:
+      type: string
+    period_start:
+      type: string
+      format: date-time
+    period_end:
+      type: string
+      format: date-time
+    summary_text:
+      type: string
     created_at:
       type: string
       format: date-time
@@ -255,12 +315,15 @@ reminders:
     goal_id:
       type: string
     channel:
-      enum: [app, email, slack, sms]
+      enum: [slack, app, email, sms]
     frequency:
       enum: [daily, weekly, monthly, custom]
     next_run_at:
       type: string
       format: date-time
+    preferred_time:
+      type: string
+      description: ISO-8601 local time or timezone-aware timestamp
     active:
       type: boolean
 ```
