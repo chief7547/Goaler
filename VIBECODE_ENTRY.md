@@ -169,16 +169,93 @@ testing:
 
 <!-- FILE: DATA_SCHEMA.yaml -->
 ```yaml
-# 간단한 데이터 스키마 예시 (YAML)
-type: object
-required:
-  - id
-  - payload
-properties:
-  id:
-    type: string
-  payload:
-    type: object
+# 목표/메트릭/대화 기록 구조 (YAML)
+goals:
+  type: object
+  required: [goal_id, title, goal_type]
+  properties:
+    goal_id:
+      type: string
+    user_id:
+      type: string
+    title:
+      type: string
+    goal_type:
+      enum: [ONE_TIME, HABIT]
+    deadline:
+      type: string
+      format: date-time
+    motivation:
+      type: string
+    status:
+      enum: [IN_PROGRESS, COMPLETED, ARCHIVED]
+    created_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time
+
+metrics:
+  type: object
+  required: [metric_id, goal_id, metric_name]
+  properties:
+    metric_id:
+      type: string
+    goal_id:
+      type: string
+    metric_name:
+      type: string
+    metric_type:
+      enum: [INCREMENTAL, DECREMENTAL, THRESHOLD]
+    target_value:
+      type: number
+    unit:
+      type: string
+    initial_value:
+      type: number
+    progress:
+      type: number
+    created_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time
+
+conversation_logs:
+  type: object
+  required: [log_id, conversation_id, role, content]
+  properties:
+    log_id:
+      type: string
+    conversation_id:
+      type: string
+    role:
+      enum: [user, assistant, tool]
+    content:
+      type: string
+    created_at:
+      type: string
+      format: date-time
+
+reminders:
+  type: object
+  required: [reminder_id, goal_id]
+  properties:
+    reminder_id:
+      type: string
+    goal_id:
+      type: string
+    channel:
+      enum: [app, email, slack, sms]
+    frequency:
+      enum: [daily, weekly, monthly, custom]
+    next_run_at:
+      type: string
+      format: date-time
+    active:
+      type: boolean
 ```
 
 <!-- FILE: requirements.txt -->
