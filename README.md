@@ -37,7 +37,11 @@ PYTHONPATH=. pytest
 - **MVP**: SQLite를 기본 저장소로 사용합니다. 별도 서버가 필요 없고 파일 하나로 목표·메트릭·대화 기록(선택)을 영구 보관할 수 있습니다.
 - **확장 단계**: PostgreSQL 등 서버형 DB로 전환할 수 있도록 구조를 분리해 두었습니다. 환경 변수로 연결 문자열만 바꾸면 마이그레이션이 가능합니다.
 
-저장 예상 테이블
+저장 예상 테이블 및 경로 정책
+- 기본 DB 파일: `data/goaler.db` (환경 변수 `GOALER_DATABASE_URL`로 경로/엔진 재정의 가능)
+- ORM 어댑터: SQLAlchemy 기반(`core/storage.py`)으로 SQLite/PostgreSQL을 동일 인터페이스로 사용
+- `users`: OAuth 공급자 타입/ID, 닉네임 등 사용자 메타 정보
+- `conversations`: 사용자별 대화 세션 상태
 - `goals`: 목표 메타 정보(제목, 유형, 기한, 동기 등)
 - `metrics`: 목표별 측정 지표(목표값, 단위, 초기값, 진행률)
 - `conversation_logs`: 원시 대화 히스토리(누적 토큰/메시지 기준으로 요약 트리거)

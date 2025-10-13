@@ -45,9 +45,11 @@
 
 - **MVP (개발 환경/소규모 사용자)**
   - SQLite를 기본 저장소로 채택합니다. 추가 인프라 없이 파일 하나로 목표와 대화 상태를 영구 보관할 수 있으며, 파이썬 표준 라이브러리(`sqlite3`)만으로 구현 가능합니다.
+  - 기본 DB 파일 경로는 `data/goaler.db`로 두고, 환경 변수 `GOALER_DATABASE_URL`로 경로를 재정의할 수 있도록 합니다.
   - `StateManager`의 저장/조회 로직을 저장소 어댑터로 분리해 두면, 인메모리 → SQLite 전환을 코드 변경 최소화로 맞출 수 있습니다.
-  - 기본 테이블 구조 예시: `goals`, `metrics`, `conversation_logs`, `conversation_summaries`, `reminders`.
+  - 기본 테이블 구조 예시: `users`, `conversations`, `goals`, `metrics`, `conversation_logs`, `conversation_summaries`, `reminders`.
   - 리마인더 채널은 우선 Slack Webhook을 기본값으로 사용합니다.
+  - 저장소 어댑터는 SQLAlchemy를 사용해 세션을 관리하고, `core/storage.py`에서 CRUD 함수를 제공합니다.
 
 - **서비스 단계 (정식 배포/확장)**
   - PostgreSQL 같은 서버형 RDBMS로 전환합니다. SQL 문법이 SQLite와 동일 계열이어서 마이그레이션 비용이 낮고, 사용자 수가 늘어도 안정적으로 동작합니다.
