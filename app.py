@@ -23,9 +23,12 @@ def _use_mock_mode() -> bool:
 def _run_mock_conversation():
     """Fallback loop that emulates the agent without external API calls."""
 
-    print("--- Goaler (OpenAI) 초기화 중... ---")
-    print("--- Goaler (OpenAI) 준비 완료. 대화를 시작하세요. (종료하려면 'exit' 입력) ---")
-    print("(mock 모드 활성화: OpenAI 호출 없이 대화를 시뮬레이션합니다.)")
+    print("--- Goaler (OpenAI) 초기화 중... ---", flush=True)
+    print(
+        "--- Goaler (OpenAI) 준비 완료. 대화를 시작하세요. (종료하려면 'exit' 입력) ---",
+        flush=True,
+    )
+    print("(mock 모드 활성화: OpenAI 호출 없이 대화를 시뮬레이션합니다.)", flush=True)
 
     agent = GoalSettingAgent()
     conversation_id = f"mock_{uuid.uuid4()}"
@@ -40,24 +43,33 @@ def _run_mock_conversation():
             break
 
         if not greeted:
-            print("Goaler: 안녕하세요! 목표 설정을 도와드릴게요. 이루고 싶은 목표가 있다면 말씀해주세요.")
+            print(
+                "Goaler: 안녕하세요! 목표 설정을 도와드릴게요. 이루고 싶은 목표가 있다면 말씀해주세요.",
+                flush=True,
+            )
             greeted = True
             continue
 
         if not goal_created:
             title = user_input.strip() or "나의 목표"
             agent.create_goal(conversation_id=conversation_id, title=title)
-            print(f"Goaler: '{title}' 목표를 생성했어요. 진행 상황을 어떻게 측정하면 좋을까요?")
+            print(
+                f"Goaler: '{title}' 목표를 생성했어요. 진행 상황을 어떻게 측정하면 좋을까요?",
+                flush=True,
+            )
             goal_created = True
             continue
 
-        print("Goaler: 좋아요! 추가로 기록하고 싶은 내용이 있다면 계속 말씀해주세요. 마치려면 'exit'를 입력하세요.")
+        print(
+            "Goaler: 좋아요! 추가로 기록하고 싶은 내용이 있다면 계속 말씀해주세요. 마치려면 'exit'를 입력하세요.",
+            flush=True,
+        )
 
 
 def _run_openai_conversation():
     """Runs the main conversational loop using the OpenAI API."""
 
-    print("--- Goaler (OpenAI) 초기화 중... ---")
+    print("--- Goaler (OpenAI) 초기화 중... ---", flush=True)
 
     try:
         client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -151,7 +163,10 @@ def _run_openai_conversation():
     conversation_id = f"conv_{uuid.uuid4()}"
     messages = [{"role": "system", "content": SYSTEM_PROMPT}]
 
-    print("--- Goaler (OpenAI) 준비 완료. 대화를 시작하세요. (종료하려면 'exit' 입력) ---")
+    print(
+        "--- Goaler (OpenAI) 준비 완료. 대화를 시작하세요. (종료하려면 'exit' 입력) ---",
+        flush=True,
+    )
 
     while True:
         user_input = input("> ")
@@ -173,7 +188,7 @@ def _run_openai_conversation():
             if not response_message.tool_calls:
                 final_text = response_message.content
                 if final_text:
-                    print(f"Goaler: {final_text}")
+                    print(f"Goaler: {final_text}", flush=True)
                     messages.append({"role": "assistant", "content": final_text})
                 break
 
@@ -183,7 +198,10 @@ def _run_openai_conversation():
                 agent_method = agent_tools.get(function_name)
 
                 if not agent_method:
-                    print(f"오류: 알 수 없는 함수({function_name}) 호출을 시도했습니다.")
+                    print(
+                        f"오류: 알 수 없는 함수({function_name}) 호출을 시도했습니다.",
+                        flush=True,
+                    )
                     continue
 
                 function_args = json.loads(tool_call.function.arguments or "{}")
@@ -209,7 +227,8 @@ def _run_openai_conversation():
                     }
 
                 print(
-                    f"--- TOOL CALL: {function_name}({function_args}) with conv_id: {conversation_id} ---"
+                    f"--- TOOL CALL: {function_name}({function_args}) with conv_id: {conversation_id} ---",
+                    flush=True,
                 )
 
                 tool_response = agent_method(**function_args)
