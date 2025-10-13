@@ -65,4 +65,8 @@ PYTHONPATH=. pytest
 ## 설계 참고 문서
 - `ARCHITECTURE.md`: 저장소·알림·요약 전략과 구현 단계, 테스트 계획을 상세히 정리했습니다.
 - `CLARIFIERS.md`: 챗봇 인터뷰 질문 템플릿입니다.
+- `docs/PRODUCT_SPEC.md`: 질문별 현재 답변/결정 사항을 정리한 문서입니다.
+- `docs/UX_FLOW.md`: UX 및 화면 구성 템플릿입니다.
+- `docs/RISK_REGISTER.md`: 리스크 식별·완화 계획 템플릿입니다.
+- `docs/DATA_FLOW.md`: 데이터 이벤트 흐름 및 외부 연동 계획 템플릿입니다.
 - `VIBECODE_ENTRY.md`: CLI가 프로젝트를 재생성할 때 사용할 템플릿과 정책을 포함합니다.
