@@ -43,7 +43,7 @@ PYTHONPATH=. pytest
 - `users`: OAuth 공급자 타입/ID, 닉네임 등 사용자 메타 정보
 - `conversations`: 사용자별 대화 세션 상태
 - `goals`: 목표 메타 정보(제목, 유형, 기한, 동기 등)
-- `metrics`: 목표별 측정 지표(목표값, 단위, 초기값, 진행률) ※ `metric_name`, `metric_type`, `target_value`, `unit`은 필수
+- `metrics`: 목표별 측정 지표(목표값, 단위, 초기값, 진행률) ※ `metric_name`, `metric_type`, `target_value`, `unit`은 필수이며, `initial_value`, `progress`, `updated_at`을 함께 관리합니다.
 - `conversation_logs`: 원시 대화 히스토리(누적 토큰/메시지 기준으로 요약 트리거)
 - `conversation_summaries`: 주기별 대화 요약본
 - `reminders`: 알림/리마인더 설정(채널, 주기, 다음 실행 시각 및 선호 시간대)

@@ -50,7 +50,7 @@
   - 저장소 어댑터는 SQLAlchemy를 사용해 세션을 관리하고, `core/storage.py`에서 CRUD 함수를 제공합니다.
   - 기본 테이블 구조 예시: `users`, `conversations`, `goals`, `metrics`, `conversation_logs`, `conversation_summaries`, `reminders`.
   - `goals`에는 `title`, `goal_type`, `deadline`, `motivation`, `status`, `user_id`, `conversation_id` 등을 저장합니다.
-  - `metrics`에는 `metric_name`, `metric_type`, `target_value`, `unit`, `initial_value`, `progress` 등을 저장합니다. (네 가지 값은 필수)
+  - `metrics`에는 `metric_name`, `metric_type`, `target_value`, `unit`, `initial_value`, `progress`, `updated_at` 등을 저장합니다. (앞의 네 값은 필수)
   - 리마인더 채널은 우선 Slack Webhook을 기본값으로 사용합니다.
 
 - **서비스 단계 (정식 배포/확장)**
