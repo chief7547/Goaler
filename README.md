@@ -26,6 +26,8 @@ GOALER_USE_MOCK=false python app.py
 - `app.py`: 챗봇 진입점. mock/실전 모드를 자동 전환하고, LLM이 내린 함수 호출을 `GoalSettingAgent`에 위임합니다.
 - `core/agent.py`: 목표 생성, 메트릭 추가, 동기 기록, 마무리까지 담당하는 비즈니스 로직.
 - `core/state_manager.py`: 대화 중간 상태를 메모리에 저장했다가 종료 시 정리합니다.
+- `core/models.py`: SQLAlchemy 모델 정의. 사용자·대화·목표·메트릭 등의 스키마를 중앙에서 관리합니다.
+- `core/storage.py`: DB 세션을 관리하고 CRUD 메서드를 제공하는 저장소 어댑터입니다.
 - `tests/test_core.py`, `tests/test_e2e_conversation.py`: 단위 테스트와 통합 테스트로 로직이 예상대로 움직이는지 검증합니다.
 
 ## 테스트
@@ -43,7 +45,7 @@ PYTHONPATH=. pytest
 - `users`: OAuth 공급자 타입/ID, 닉네임 등 사용자 메타 정보
 - `conversations`: 사용자별 대화 세션 상태
 - `goals`: 목표 메타 정보(제목, 유형, 기한, 동기 등)
-- `metrics`: 목표별 측정 지표(목표값, 단위, 초기값, 진행률) ※ `metric_name`, `metric_type`, `target_value`, `unit`은 필수이며, `initial_value`, `progress`, `updated_at`을 함께 관리합니다.
+- `metrics`: 목표별 측정 지표(목표값, 단위, 초기값, 진행률) ※ `metric_name`, `metric_type`, `target_value`, `unit`은 필수이며, `initial_value`, `progress`, `updated_at`을 함께 관리합니다. (진행률과 시각은 수동/자동 갱신 모두 지원 예정)
 - `conversation_logs`: 원시 대화 히스토리(누적 토큰/메시지 기준으로 요약 트리거)
 - `conversation_summaries`: 주기별 대화 요약본
 - `reminders`: 알림/리마인더 설정(채널, 주기, 다음 실행 시각 및 선호 시간대)
@@ -59,3 +61,8 @@ PYTHONPATH=. pytest
 - MVP에서는 테스트용 단일 사용자를 사용하되, DB 스키마에 `users`/`conversations` 테이블을 준비해 둡니다.
 - 정식 서비스에서는 구글/카카오 OAuth를 사용해 사용자 식별을 처리하고, 내부적으로는 `user_id`(UUID)만 저장합니다.
 - OAuth 토큰·환경 변수는 서버 측 안전한 저장소에 보관하고, HTTPS 통신 및 기본 보안 정책(토큰 만료, 접근 제어)을 준수합니다.
+
+## 설계 참고 문서
+- `ARCHITECTURE.md`: 저장소·알림·요약 전략과 구현 단계, 테스트 계획을 상세히 정리했습니다.
+- `CLARIFIERS.md`: 챗봇 인터뷰 질문 템플릿입니다.
+- `VIBECODE_ENTRY.md`: CLI가 프로젝트를 재생성할 때 사용할 템플릿과 정책을 포함합니다.

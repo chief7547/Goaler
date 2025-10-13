@@ -51,6 +51,7 @@
   - 기본 테이블 구조 예시: `users`, `conversations`, `goals`, `metrics`, `conversation_logs`, `conversation_summaries`, `reminders`.
   - `goals`에는 `title`, `goal_type`, `deadline`, `motivation`, `status`, `user_id`, `conversation_id` 등을 저장합니다.
   - `metrics`에는 `metric_name`, `metric_type`, `target_value`, `unit`, `initial_value`, `progress`, `updated_at` 등을 저장합니다. (앞의 네 값은 필수)
+    - `progress`와 `updated_at`은 사용자가 직접 입력하거나 챗봇이 자동으로 갱신할 수 있도록 API를 제공할 예정입니다.
   - 리마인더 채널은 우선 Slack Webhook을 기본값으로 사용합니다.
 
 - **서비스 단계 (정식 배포/확장)**
@@ -59,6 +60,18 @@
 
 - **문서 및 템플릿 연계**
   - `README.md`와 `VIBECODE_ENTRY.md` 템플릿에 “개발: SQLite / 배포: PostgreSQL” 흐름을 명시해 CLI가 생성하는 문서도 같은 전략을 반영하도록 합니다.
+
+### 4.1 저장소 인터페이스 개요
+
+- **모델 정의 (`core/models.py`)**: SQLAlchemy `Base`와 각 테이블 클래스를 정의합니다. 모델 간 관계(예: `Goal`→`Metric`, `Conversation`→`Goal`)를 명시해 ORM 상호 참조가 가능하도록 합니다.
+- **어댑터 계층 (`core/storage.py`)**: `StorageConfig`에서 엔진과 세션 팩토리를 초기화하고, `Storage` 클래스에서 다음과 같은 메서드를 제공합니다.
+  - `create_goal(...)`, `update_goal(...)`
+  - `add_metric(...)`, `update_metric_progress(...)` (사용자 입력 또는 자동 갱신 모두 허용)
+  - `log_conversation(...)`, `create_conversation_summary(...)`
+  - `create_reminder(...)`, `list_reminders_due(...)`
+  - 조회용 헬퍼: `fetch_goals_with_metrics(user_id)`, `fetch_latest_summary(conversation_id)` 등
+- **세션 관리**: 컨텍스트 매니저(`session_scope`)로 트랜잭션을 안전하게 묶고, 테스트 환경에서는 `sqlite:///:memory:` 구성을 사용합니다.
+- **에러/검증 정책**: 필수 값 누락 시 명확한 예외를 던지고, 파이썬 데이터 클래스를 사용해 입력을 검증할 계획입니다.
 
 ## 5. 개발 및 테스트 전략
 
@@ -107,3 +120,11 @@
 - 구글/카카오 OAuth를 사용해 "provider_type + provider_id" 조합으로 사용자를 식별하고, 내부적으로는 `user_id`(UUID)를 발급합니다.
 - 민감한 비밀번호를 저장하지 않고도 인증이 가능하므로 보안 부담을 줄일 수 있지만, 토큰 저장·통신 암호화·접근 제어 등 기본 보안 수칙은 반드시 준수합니다.
 - 향후 배포 시 Privacy Policy와 데이터 처리 방침을 명시하고, Slack Webhook/DB 자격 증명은 환경 변수로 관리합니다.
+
+## 12. 구현 단계 및 테스트 전략
+
+1. **모델 계층 구현**: `core/models.py`에 SQLAlchemy 모델을 정의하고, SQLite 인메모리 환경에서 스키마 생성 테스트(`tests/test_models.py`)를 작성합니다.
+2. **저장소 어댑터 구축**: `core/storage.py`에서 컨텍스트 매니저 및 CRUD 메서드를 구현하고, `tests/test_storage.py`로 목표/메트릭/리마인더 CRUD를 검증합니다.
+3. **StateManager 통합**: 기존 인메모리 로직을 유지하되, 생성/업데이트 시 저장소 어댑터를 호출하도록 확장합니다. 통합 테스트(`tests/test_e2e_conversation.py`)에 DB 백엔드 사용 케이스를 추가합니다.
+4. **요약·알림 워커 설계**: 대화 요약 생성기와 리마인더 스케줄러에 대한 스텁을 만들고, 후속 단계에서 실제 작업자(예: Celery, APScheduler)를 붙일 수 있도록 인터페이스를 정의합니다.
+5. **CI 강화**: DB 관련 테스트는 SQLite 인메모리를 사용하고, 필요 시 PostgreSQL을 Docker 서비스로 추가해 호환성 테스트를 진행합니다.
