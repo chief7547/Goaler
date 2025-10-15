@@ -72,4 +72,5 @@ PYTHONPATH=. pytest
 - `docs/BOSS_DESIGN_GUIDE.md`: 핵심 단계(보스전) 정의와 질문 가이드입니다.
 - `docs/COACH_TONE_GUIDE.md`: AI 코치의 말투/응답 패턴 가이드입니다.
 - `docs/LOOT_REPORT_TEMPLATE.md`: 월간/분기 전리품 리포트 구조를 정의합니다.
+- `docs/LLM_USAGE_GUIDE.md`: LLM 모델 사용 전략과 비용 모니터링 지침입니다.
 - `VIBECODE_ENTRY.md`: CLI가 프로젝트를 재생성할 때 사용할 템플릿과 정책을 포함합니다.
