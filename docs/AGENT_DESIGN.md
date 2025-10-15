@@ -340,3 +340,6 @@ class Storage:
   - Warning: 회복 변주 포함, 공격/수비 선택지를 2→1개로 축소.
   - Critical: 회복/보완 퀘스트만 제안, 성공 시 “Guardian Buff” 부여 메시지 포함.
   - Emergency: “포션 의식” 시나리오 묘사와 휴식 후 재도전 계획 안내.
+- `docs/COACH_TONE_GUIDE.md`에 정리된 말투 가이드를 SYSTEM_PROMPT에 반영하여,
+  `challenge_appetite`, `energy_status`, `loot_type`, `boss_stages` 등을 근거로 톤을
+  변화시키도록 합니다.
