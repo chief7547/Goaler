@@ -57,7 +57,7 @@ player_progress:
       description: 현재 집중 중인 목표 ID (없으면 null)
     stage_label:
       type: string
-      description: Stage 이름 또는 레벨 코드 (예: STAGE_0_ONBOARDING)
+      description: "Stage 이름 또는 레벨 코드 (예: STAGE_0_ONBOARDING)"
     level:
       type: integer
       minimum: 0
@@ -129,7 +129,7 @@ boss_stages:
       type: string
     title:
       type: string
-      description: 현실 과업 기반의 핵심 단계 (예: 사업자등록 완료)
+      description: "현실 과업 기반의 핵심 단계 (예: 사업자등록 완료)"
     description:
       type: string
       description: 왜 중요한지, 예상 장애물을 요약
@@ -197,7 +197,7 @@ quests:
       type: array
       items:
         type: string
-      description: 변주를 만들 때 참고하는 속성(예: tempo_up, focus, social)
+      description: "변주를 만들 때 참고하는 속성(예: tempo_up, focus, social)"
     is_custom:
       type: boolean
       description: 사용자가 직접 정의했는지 여부
