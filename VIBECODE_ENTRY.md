@@ -128,6 +128,8 @@ GOALER_USE_MOCK=false python app.py
 - `app.py`: 챗봇 진입점. mock/실전 모드를 자동 전환하고, LLM이 내린 함수 호출을 `GoalSettingAgent`에 위임합니다.
 - `core/agent.py`: 목표 생성, 메트릭 추가, 동기 기록, 마무리까지 담당하는 비즈니스 로직.
 - `core/state_manager.py`: 대화 중간 상태를 메모리에 저장했다가 종료 시 정리합니다.
+- `core/models.py`: SQLAlchemy 모델 정의. 사용자·대화·목표·메트릭 등의 스키마를 중앙에서 관리합니다.
+- `core/storage.py`: DB 세션을 관리하고 CRUD 메서드를 제공하는 저장소 어댑터입니다.
 - `tests/test_core.py`, `tests/test_e2e_conversation.py`: 단위 테스트와 통합 테스트로 로직이 예상대로 움직이는지 검증합니다.
 
 ## 테스트
@@ -135,10 +137,27 @@ GOALER_USE_MOCK=false python app.py
 PYTHONPATH=. pytest
 ```
 
-## 추후 진행 방향
-- UI·알림 채널 연동: 현재는 CLI 기반이므로, 웹/모바일 UI나 메시징 봇으로 확장할 수 있습니다.
-- 지속 저장소: 목표 결과를 파일/DB에 영구 저장해 재접속 시 이어서 진행하도록 만듭니다.
-- 추가 메트릭 템플릿: 식단, 수면 등 자주 쓰는 목표 유형을 템플릿화하면 챗봇 안내가 더 부드러워집니다.
+## 데이터 저장 전략
+- **MVP**: SQLite를 기본 저장소로 사용합니다. 별도 서버 없이 파일 하나로 목표·메트릭·대화 기록(선택)을 영구 보관할 수 있습니다.
+- **확장 단계**: PostgreSQL 등 서버형 DB로 전환할 수 있도록 구조를 분리해 두었습니다. 환경 변수로 연결 문자열을 바꾸면 마이그레이션이 가능합니다.
+
+저장 예상 테이블 및 경로 정책
+- 기본 DB 파일: `data/goaler.db` (환경 변수 `GOALER_DATABASE_URL`로 경로/엔진 재정의 가능)
+- ORM 어댑터: SQLAlchemy 기반(`core/storage.py`)으로 SQLite/PostgreSQL을 동일 인터페이스로 사용
+- `users`: OAuth 공급자 타입/ID, 닉네임 등 사용자 메타 정보
+- `conversations`: 사용자별 대화 세션 상태
+- `goals`: 목표 메타 정보(제목, 유형, 기한, 동기 등)
+- `metrics`: 목표별 측정 지표(목표값, 단위, 초기값, 진행률) ※ `metric_name`, `metric_type`, `target_value`, `unit`은 필수
+- `conversation_logs`: 원시 대화 히스토리(누적 토큰/메시지 기준으로 요약 트리거)
+- `conversation_summaries`: 주기별 대화 요약본
+- `reminders`: 알림/리마인더 설정(채널, 주기, 다음 실행 시각 및 선호 시간대)
+
+## 로드맵
+1. **지속 저장소 고도화**: `StateManager`와 분리된 저장소 모듈을 도입해 SQLite→PostgreSQL 전환을 지원합니다.
+2. **경험 확장**: 웹/모바일 UI 혹은 메시징 봇(슬랙 등)으로 챗봇을 옮겨 목표 진행 상황을 시각화합니다.
+3. **장기 목표 코칭**: 장기 목표를 작은 단계로 쪼개고, 심리학·게이미피케이션 요소(주간 리포트, 축하 메시지 등)를 챗봇 응답에 녹입니다.
+4. **알림/리마인더 연동**: MVP는 Slack Webhook으로 고정 포맷(목표 제목 + 현재 진행률 + 남은 기간 + 다음 액션)을 전송하고, 향후 앱 푸시·이메일·SMS 등 다중 채널을 지원합니다. 주기·시간대는 챗봇 대화나 앱 UI에서 사용자가 직접 지정할 수 있습니다.
+5. **운영·보안 강화**: 인증/권한, 배포 파이프라인, 브랜치 보호 규칙을 정교하게 유지합니다.
 ```
 
 <!-- FILE: CONFIG.yaml -->
@@ -163,16 +182,156 @@ testing:
 
 <!-- FILE: DATA_SCHEMA.yaml -->
 ```yaml
-# 간단한 데이터 스키마 예시 (YAML)
-type: object
-required:
-  - id
-  - payload
-properties:
-  id:
-    type: string
-  payload:
-    type: object
+# Goaler 저장소 구조 (YAML)
+users:
+  type: object
+  required: [user_id, provider_type, provider_id]
+  properties:
+    user_id:
+      type: string
+    provider_type:
+      enum: [google, kakao, apple, local]
+    provider_id:
+      type: string
+    display_name:
+      type: string
+    created_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time
+
+conversations:
+  type: object
+  required: [conversation_id, user_id]
+  properties:
+    conversation_id:
+      type: string
+    user_id:
+      type: string
+    status:
+      enum: [ACTIVE, CLOSED]
+    created_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time
+
+goals:
+  type: object
+  required: [goal_id, user_id, title, goal_type]
+  properties:
+    goal_id:
+      type: string
+    user_id:
+      type: string
+    conversation_id:
+      type: string
+    title:
+      type: string
+    goal_type:
+      enum: [ONE_TIME, HABIT]
+    deadline:
+      type: string
+      format: date-time
+    motivation:
+      type: string
+    status:
+      enum: [IN_PROGRESS, COMPLETED, ARCHIVED]
+    created_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time
+
+metrics:
+  type: object
+  required: [metric_id, goal_id, metric_name]
+  properties:
+    metric_id:
+      type: string
+    goal_id:
+      type: string
+    metric_name:
+      type: string
+    metric_type:
+      enum: [INCREMENTAL, DECREMENTAL, THRESHOLD]
+    target_value:
+      type: number
+    unit:
+      type: string
+    initial_value:
+      type: number
+    progress:
+      type: number
+    created_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time
+
+conversation_logs:
+  type: object
+  required: [log_id, conversation_id, role, content]
+  properties:
+    log_id:
+      type: string
+    conversation_id:
+      type: string
+    role:
+      enum: [user, assistant, tool]
+    content:
+      type: string
+    token_count:
+      type: integer
+    created_at:
+      type: string
+      format: date-time
+
+conversation_summaries:
+  type: object
+  required: [summary_id, conversation_id, summary_text]
+  properties:
+    summary_id:
+      type: string
+    conversation_id:
+      type: string
+    period_start:
+      type: string
+      format: date-time
+    period_end:
+      type: string
+      format: date-time
+    summary_text:
+      type: string
+    created_at:
+      type: string
+      format: date-time
+
+reminders:
+  type: object
+  required: [reminder_id, goal_id]
+  properties:
+    reminder_id:
+      type: string
+    goal_id:
+      type: string
+    channel:
+      enum: [slack, app, email, sms]
+    frequency:
+      enum: [daily, weekly, monthly, custom]
+    next_run_at:
+      type: string
+      format: date-time
+    preferred_time:
+      type: string
+      description: ISO-8601 local time or timezone-aware timestamp
+    active:
+      type: boolean
 ```
 
 <!-- FILE: requirements.txt -->
@@ -218,37 +377,45 @@ audit/logs/
 
 <!-- FILE: CLARIFIERS.md -->
 ```markdown
-# CLARIFIERS (인터뷰 질문 템플릿, 한국어)
+# CLARIFIERS (Goaler 인터뷰 질문 템플릿)
 
-## 프로젝트 개요
-Q1. 이 앱의 핵심 목적을 한 문장으로 적어주세요. (예: "가계부 자동 요약 서비스")
-예시 답변: "한달 소비를 카테고리별로 자동 분류해주는 툴"
+## 1. 목표 개요 파악
+- **Q1.** 이번에 달성하고 싶은 목표를 한 문장으로 설명해주세요. (예: “1년 안에 마라톤 완주”, “1년 안에 사이드 프로젝트로 첫 매출 100만 원 만들기”)
+- **Q2.** 이 목표는 단발성(한 번 달성)인가요, 아니면 반복 유지형(습관/루틴)인가요?
+- **Q3.** 목표를 달성하고 싶은 기한이 있나요? (예: 12개월, 특정 날짜)
 
-Q2. 최종 사용자는 누구인가요? (예: 개인, 조직, 관리자)
-예시 답변: "개인 사용자, 모바일 우선"
+## 2. 현재 상태와 측정 지표
+- **Q4.** 현재 상태(베이스라인)는 어떤가요? (예: “현재는 5km까지 뛸 수 있음”, “월매출 0원”)
+- **Q5.** 진행 상황을 어떻게 측정하고 싶나요? 필요한 지표를 가능한 한 구체적으로 적어주세요. (예: 주간 러닝 횟수, 누적 거리, 월 매출 금액)
+- **Q6.** 목표를 이루기 위한 중간 단계(퀘스트/서브 목표)가 있다면 무엇인가요? (예: “3개월차에 하프 마라톤 완주”, “3개월 뒤 베타 서비스 출시”)
 
-Q3. 필수 입력 데이터는 무엇인가요? (형식, 예시 포함)
-예시 답변: "CSV 거래내역(날짜,금액,카테고리)"
+## 3. 동기와 보상 설계
+- **Q7.** 이 목표를 꼭 이루고 싶은 이유(동기)는 무엇인가요?
+- **Q8.** 목표를 지속하기 위해 받고 싶은 피드백이나 보상 방식이 있나요? (예: 주간 리포트, 경험치/뱃지, 코치 메시지)
 
-## 기능 상세 (모듈별)
-- AUTH
-  Q4. 로그인/권한 체계가 필요한가요? (yes/no). 필요하다면 어떤 권한 레벨이 있나요?
-- INGESTION
-  Q5. 데이터 수집 방법은? (업로드/스크래핑/API)
-- PROCESSING
-  Q6. 핵심 처리 로직을 한 문장으로 설명해주세요.
-- OUTPUT
-  Q7. 결과물 형식은? (JSON/CSV/웹 UI/슬랙 등)
+## 4. 지원 장치 및 알림
+- **Q9.** 목표 진행을 도와줄 알림/리마인더가 필요하신가요? 있다면 주기와 채널(앱 알림, 이메일, 슬랙 등)을 알려주세요.
+- **Q10.** 목표 진행 중 예상되는 장애물이나 위험 요소가 있다면 무엇인가요? 이를 어떻게 모니터링하고 싶나요?
 
-## 비기능 요구
-Q8. 목표 가용성(SLA)은 얼마인가요? (예: 99.5%)
-Q9. 목표 처리량(동시 사용자 수) 또는 지연시간 요건이 있나요?
-Q10. 보안/규정 관련 요구사항이 있나요? (예: DB 암호화)
+## 5. 운영 및 보안 고려사항
+- **Q11.** 사용자 계정/권한 관리가 필요할까요? (예: 개인 전용, 팀 코치 전용, 관리자 기능)
+- **Q12.** 데이터 보관/보안 측면에서 꼭 지켜야 할 규칙이 있다면 적어주세요. (예: 장기 보관, 암호화, 백업 주기)
 
-## 테스트·운영
-Q11. 통합 테스트에서 반드시 통과해야 하는 시나리오를 3개 이상 적어주세요.
-Q12. 배포 전 확인해야 할 운영 체크리스트를 적어주세요.
+## 6. UX 및 UI 계획
+- **Q13.** 사용자가 목표를 등록하고 진행하는 전체 여정(로그인 → 목표 생성 → 진행률 업데이트 → 리마인더 → 회고)을 한 번에 설명해 주세요.
+- **Q14.** 웹/앱 화면에서 반드시 보여주고 싶은 정보나 위젯(예: 목표 카드, 진행률 그래프, 오늘의 퀘스트)이 있다면 알려주세요.
+- **Q15.** 위 UX를 바탕으로 필요한 화면/페이지 목록과 각 화면의 핵심 UI 요소(버튼, 카드, 리스트 등)를 정리해 주세요.
+- **Q16.** 목표·메트릭·리마인더를 관리할 때 필요한 주요 사용자 액션(예: 목표 편집, 진행률 업데이트, 알림 재설정)을 UI에서 어떻게 배치하면 좋을까요?
+
+## 7. 리스크 및 운영 계획
+- **Q17.** 예상되는 기능/운영 리스크(예: 알림 중복, 목표 데이터 손실)를 목록으로 정리해 주세요.
+- **Q18.** 리스크를 감지하고 완화하기 위한 모니터링/백업/사후 조치 계획을 어떻게 세우면 좋을까요?
+
+## 8. 데이터 흐름과 외부 연동
+- **Q19.** 목표·메트릭·대화 로그가 어떤 이벤트에 의해 생성/갱신되는지 흐름을 설명해 주세요.
+- **Q20.** 외부 서비스나 API(예: 건강 앱, 재무 관리 앱)와 연동하고 싶은 계획이 있다면 알려주세요.
 ```
+
 
 <!-- FILE: PR_TEMPLATE.md -->
 ```markdown
@@ -786,3 +953,11 @@ vibe-cli interview --entry VIBECODE_ENTRY.md
 
 ---
 끝.
+
+## 설계 참고 문서
+- `ARCHITECTURE.md`: 저장소·알림·요약 전략과 구현 단계, 테스트 계획을 상세히 정리했습니다.
+- `CLARIFIERS.md`: 챗봇 인터뷰 질문 템플릿입니다.
+- `docs/PRODUCT_SPEC.md`: 인터뷰 답변/결정 사항 정리용 문서입니다.
+- `docs/UX_FLOW.md`: UX 및 화면 구성 템플릿입니다.
+- `docs/RISK_REGISTER.md`: 리스크 식별·완화 계획 템플릿입니다.
+- `docs/DATA_FLOW.md`: 데이터 이벤트 흐름 및 외부 연동 계획 템플릿입니다.

@@ -14,3 +14,108 @@ deployment:
 
 testing:
   coverage_threshold: 0.80
+
+templates:
+  quest_categories:
+    # 아래 항목은 LLM이 초기 인터뷰에서 참고할 대표 예시입니다.
+    # 실제 일일 미션은 변주 로직이 동일 카테고리 내에서 세부 내용을 바꿔 제안합니다.
+    - category: "운동·건강"
+      quests:
+        - title: "주 3회 러닝 완료"
+          description: "주 3회, 30분 이상 러닝을 수행하고 완료 버튼으로 체크합니다."
+        - title: "주간 스트레칭 2회"
+          description: "집에서 15분 스트레칭 루틴을 실행하고 완료를 누릅니다."
+        - title: "주말 장거리 러닝"
+          description: "주말에 장거리 러닝을 완료한 뒤 메모(선택)를 남깁니다."
+    - category: "비즈니스·수익"
+      quests:
+        - title: "주간 잠재 고객 5명 대화"
+          description: "신규 고객 후보와 대화를 마칠 때마다 완료합니다."
+        - title: "매주 제품 개선 1건 출시"
+          description: "한 주에 한 번 프로토타입 또는 기능 업데이트를 완료합니다."
+        - title: "주간 매출 회고"
+          description: "매주 매출/지표를 점검하고, 챗봇 회고를 통해 완료 처리합니다."
+    - category: "학습·자격"
+      quests:
+        - title: "주 5일 학습 세션"
+          description: "매일 30분 이상 학습을 완료한 뒤 체크합니다."
+        - title: "주간 모의고사 리뷰"
+          description: "모의고사를 풀고 오답을 정리한 뒤 완료합니다."
+        - title: "학습 로그 정리"
+          description: "한 주 학습 내용을 챗봇에 보고하고 완료 버튼을 누릅니다."
+    - category: "생활 습관·웰빙"
+      quests:
+        - title: "하루 루틴 완료"
+          description: "정해 둔 아침/저녁 루틴을 실천하면 하루 한 번 완료합니다."
+        - title: "물 2리터 마시기"
+          description: "목표 섭취량을 달성했을 때 체크합니다."
+        - title: "주 3회 요가/명상"
+          description: "요가나 명상 세션을 마칠 때 완료합니다."
+    - category: "창작·프로젝트"
+      quests:
+        - title: "주간 원고 작성 세션 3회"
+          description: "집중 작성 세션을 완료할 때마다 체크합니다."
+        - title: "주간 프로토타입 개선"
+          description: "제품/앱 개선을 배포했을 때 완료합니다."
+        - title: "아이디어 회고 노트 작성"
+          description: "한 주 아이디어를 정리하고 챗봇에 공유한 뒤 완료합니다."
+    - category: "재무·투자"
+      quests:
+        - title: "지출 기록 정리"
+          description: "일주일 지출을 정리하고 챗봇에 보고 후 완료합니다."
+        - title: "저축/투자 자동이체 점검"
+          description: "자동이체 상황을 확인하고 필요 시 조정한 뒤 완료합니다."
+        - title: "월간 재무 회고"
+          description: "이달 재무 성과를 챗봇과 회고하고 완료합니다."
+
+optional_metrics:
+  metric_categories:
+    - category: "운동·건강"
+      examples:
+        - name: "주당 총 달린 거리"
+          unit: "km"
+        - name: "10km 달리기 기록"
+          unit: "분"
+    - category: "비즈니스·수익"
+      examples:
+        - name: "월 매출"
+          unit: "만원"
+        - name: "신규 고객 수"
+          unit: "명"
+    - category: "학습·자격"
+      examples:
+        - name: "주당 학습 시간"
+          unit: "시간"
+        - name: "모의고사 점수"
+          unit: "점"
+    - category: "생활 습관·웰빙"
+      examples:
+        - name: "평균 수면 시간"
+          unit: "시간"
+        - name: "주간 루틴 실행 횟수"
+          unit: "회"
+    - category: "창작·프로젝트"
+      examples:
+        - name: "주간 작업 시간"
+          unit: "시간"
+        - name: "프로토타입 업데이트 횟수"
+          unit: "회"
+    - category: "재무·투자"
+      examples:
+        - name: "월 저축액"
+          unit: "만원"
+        - name: "투자 수익률"
+          unit: "%"
+  validation_rules:
+    numeric_positive:
+      description: "양수 또는 0보다 큰 값이 필요한 경우"
+      prompt: "0보다 큰 숫자로 다시 입력해 주세요."
+    percent_range:
+      description: "퍼센트(%) 단위는 0~100 범위"
+      prompt: "퍼센트 값은 0부터 100 사이로 입력해 주세요."
+    unit_required:
+      description: "단위가 비어 있을 때"
+      prompt: "어떤 단위로 기록해야 이해하기 쉬울까요? 예: 시간, km, 만원"
+    unrealistic_goal:
+      description: "기간 대비 목표치가 비현실적으로 보일 때"
+      prompt: "목표가 너무 급격해 보입니다. 기간을 늘리거나 단계를 쪼개 볼까요?"

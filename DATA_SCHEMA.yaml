@@ -1,10 +1,302 @@
-# 간단한 데이터 스키마 예시 (YAML)
-type: object
-required:
-  - id
-  - payload
-properties:
-  id:
-    type: string
-  payload:
-    type: object
+# Goaler 저장소 구조 (YAML)
+
+users:
+  type: object
+  required: [user_id, provider_type, provider_id]
+  properties:
+    user_id:
+      type: string
+    provider_type:
+      enum: [google, kakao, apple, local]
+    provider_id:
+      type: string
+    display_name:
+      type: string
+    created_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time
+
+user_preferences:
+  type: object
+  required: [user_id]
+  properties:
+    user_id:
+      type: string
+    personality_type:
+      type: string
+      description: MBTI 혹은 자체 정의된 성향 코드
+    challenge_appetite:
+      enum: [LOW, MEDIUM, HIGH]
+    preferred_playstyle:
+      enum: [SOLO, SOCIAL, MIXED]
+    calm_time_window:
+      type: array
+      items:
+        type: string
+      description: 사용자가 집중하기 쉬운 시간대 문자열 목록
+    disliked_patterns:
+      type: array
+      items:
+        type: string
+      description: 반복되면 싫어하는 패턴 태그
+    updated_at:
+      type: string
+      format: date-time
+
+player_progress:
+  type: object
+  required: [user_id]
+  properties:
+    user_id:
+      type: string
+    focus_goal_id:
+      type: string
+      description: 현재 집중 중인 목표 ID (없으면 null)
+    stage_label:
+      type: string
+      description: "Stage 이름 또는 레벨 코드 (예: STAGE_0_ONBOARDING)"
+    level:
+      type: integer
+      minimum: 0
+    experience_points:
+      type: integer
+      minimum: 0
+    streak_weeks:
+      type: integer
+      minimum: 0
+    last_reflection_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time
+
+conversations:
+  type: object
+  required: [conversation_id, user_id]
+  properties:
+    conversation_id:
+      type: string
+    user_id:
+      type: string
+    status:
+      enum: [ACTIVE, CLOSED]
+    created_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time
+
+goals:
+  type: object
+  required: [goal_id, user_id, title, goal_type]
+  properties:
+    goal_id:
+      type: string
+    user_id:
+      type: string
+    conversation_id:
+      type: string
+    title:
+      type: string
+    goal_type:
+      enum: [ONE_TIME, HABIT]
+    deadline:
+      type: string
+      format: date-time
+    motivation:
+      type: string
+    status:
+      enum: [IN_PROGRESS, COMPLETED, ARCHIVED]
+    created_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time
+
+boss_stages:
+  type: object
+  required: [boss_id, goal_id, title]
+  properties:
+    boss_id:
+      type: string
+    goal_id:
+      type: string
+    title:
+      type: string
+      description: "현실 과업 기반의 핵심 단계 (예: 사업자등록 완료)"
+    description:
+      type: string
+      description: 왜 중요한지, 예상 장애물을 요약
+    success_criteria:
+      type: string
+    stage_order:
+      type: integer
+    status:
+      enum: [PLANNED, READY, IN_PROGRESS, COMPLETED]
+    target_week:
+      type: integer
+      description: 목표 달성까지의 주차(0=이번 주)
+    created_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time
+
+metrics:
+  type: object
+  required: [metric_id, goal_id, metric_name]
+  properties:
+    metric_id:
+      type: string
+    goal_id:
+      type: string
+    metric_name:
+      type: string
+    metric_type:
+      enum: [INCREMENTAL, DECREMENTAL, THRESHOLD]
+    target_value:
+      type: number
+    unit:
+      type: string
+    initial_value:
+      type: number
+    progress:
+      type: number
+    created_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time
+
+quests:
+  type: object
+  required: [quest_id, goal_id, title]
+  properties:
+    quest_id:
+      type: string
+    goal_id:
+      type: string
+    title:
+      type: string
+    description:
+      type: string
+    difficulty_tier:
+      enum: [EASY, NORMAL, HARD, BOSS]
+    expected_duration_minutes:
+      type: integer
+      minimum: 1
+    variation_tags:
+      type: array
+      items:
+        type: string
+      description: "변주를 만들 때 참고하는 속성(예: tempo_up, focus, social)"
+    is_custom:
+      type: boolean
+      description: 사용자가 직접 정의했는지 여부
+    origin_prompt_hash:
+      type: string
+      description: LLM 제안 원천 메시지를 추적하기 위한 해시값
+    created_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time
+
+quest_logs:
+  type: object
+  required: [log_id, quest_id, occurred_at, outcome]
+  properties:
+    log_id:
+      type: string
+    quest_id:
+      type: string
+    occurred_at:
+      type: string
+      format: date-time
+    outcome:
+      enum: [COMPLETED, SKIPPED, FAILED, DEFERRED]
+    perceived_difficulty:
+      enum: [TOO_EASY, JUST_RIGHT, TOO_HARD]
+    energy_status:
+      enum: [READY_FOR_BOSS, NEEDS_POTION, KEEPING_PACE]
+      description: 미션 이후 스스로 느낀 체력/에너지 상태를 게임 비유로 기록
+    loot_type:
+      enum: [ACHIEVEMENT, INSIGHT, EMOTION]
+      description: 전리품 한 줄의 성격 (성과/깨달음/느낌)
+    mood_note:
+      type: string
+      description: 사용자가 남긴 감상 또는 에너지 상태
+    llm_variation_seed:
+      type: string
+      description: 동일 카테고리 재활용 시 변주 추적용 값
+    created_at:
+      type: string
+      format: date-time
+
+conversation_logs:
+  type: object
+  required: [log_id, conversation_id, role, content]
+  properties:
+    log_id:
+      type: string
+    conversation_id:
+      type: string
+    role:
+      enum: [user, assistant, tool]
+    content:
+      type: string
+    token_count:
+      type: integer
+    created_at:
+      type: string
+      format: date-time
+
+conversation_summaries:
+  type: object
+  required: [summary_id, conversation_id, summary_text]
+  properties:
+    summary_id:
+      type: string
+    conversation_id:
+      type: string
+    period_start:
+      type: string
+      format: date-time
+    period_end:
+      type: string
+      format: date-time
+    summary_text:
+      type: string
+    created_at:
+      type: string
+      format: date-time
+
+reminders:
+  type: object
+  required: [reminder_id, goal_id]
+  properties:
+    reminder_id:
+      type: string
+    goal_id:
+      type: string
+    channel:
+      enum: [slack, app, email, sms]
+    frequency:
+      enum: [daily, weekly, monthly, custom]
+    next_run_at:
+      type: string
+      format: date-time
+    preferred_time:
+      type: string
+      description: ISO-8601 local time or timezone-aware timestamp
+    active:
+      type: boolean
