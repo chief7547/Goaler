@@ -3,11 +3,66 @@
 import json
 import os
 import uuid
+from datetime import datetime
+from pathlib import Path
 
 from dotenv import load_dotenv
 from openai import OpenAI
 
 from core.agent import GoalSettingAgent, SYSTEM_PROMPT
+
+
+DEFAULT_CHAT_MODEL = "gpt-5-mini"
+# Task-specific model plan (see docs/LLM_USAGE_GUIDE.md for details)
+LLM_MODEL_PLAN = {
+    "goal_planning": {
+        "primary": "gpt-5-mini",
+        "fallback": "gpt-4o-mini",
+    },
+    "summaries": {
+        "primary": "gpt-4o-mini",
+        "fallback": "gpt-5-mini",
+    },
+    "reflection_reports": {
+        "primary": "gpt-5-mini",
+        "fallback": "gpt-4o-mini",
+    },
+}
+
+USAGE_LOG_PATH = Path("logs/llm_usage.log")
+
+
+def _log_llm_usage(model: str, usage: dict | None) -> None:
+    """Append token usage information to a local log for cost monitoring."""
+
+    if not usage:
+        return
+
+    USAGE_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    record = {
+        "timestamp": datetime.utcnow().isoformat(),
+        "model": model,
+        "prompt_tokens": usage.get("prompt_tokens"),
+        "completion_tokens": usage.get("completion_tokens"),
+        "total_tokens": usage.get("total_tokens"),
+    }
+    with USAGE_LOG_PATH.open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps(record, ensure_ascii=False) + "\n")
+
+
+def _usage_to_dict(usage_obj: object) -> dict | None:
+    """Best-effort conversion from SDK usage object to plain dict."""
+
+    if usage_obj is None:
+        return None
+    for attr in ("to_dict", "model_dump", "dict"):
+        method = getattr(usage_obj, attr, None)
+        if callable(method):
+            return method()
+    if isinstance(usage_obj, dict):
+        return usage_obj
+    # Fallback: use attribute dictionary if available
+    return getattr(usage_obj, "__dict__", None)
 
 
 def _use_mock_mode() -> bool:
@@ -84,6 +139,8 @@ def _run_openai_conversation():
         "set_motivation": agent.set_motivation,
         "finalize_goal": agent.finalize_goal,
     }
+
+    model_name = DEFAULT_CHAT_MODEL
 
     tools_json_schema = [
         {
@@ -178,11 +235,13 @@ def _run_openai_conversation():
 
         while True:
             response = client.chat.completions.create(
-                model="gpt-5-mini",
+                model=model_name,
                 messages=messages,
                 tools=tools_json_schema,
                 tool_choice="auto",
             )
+            usage_dict = _usage_to_dict(getattr(response, "usage", None))
+            _log_llm_usage(model_name, usage_dict)
             response_message = response.choices[0].message
 
             if not response_message.tool_calls:
