@@ -32,6 +32,7 @@
   - `energy_warning_triggered`: {level (warning/critical/emergency), consecutive_days}
   - `boss_success`: {boss_id, total_days_prepared, combo_count}
 - ETL 제안: 일별 스냅샷 테이블(`daily_goal_stats`, `daily_warning_stats`) 생성 → BI 도구에서 Alert 설정
+- 월말/분기말에는 ETL 결과를 사용해 `tools/generate_loot_report.py`를 호출하고, 생성된 파일 경로를 알림 시스템(Slack/Email)과 연동한다.
 
 ## 5. 개인정보 및 윤리 고려
 - 감성 메모는 짧은 텍스트로 수집하며, 민감 정보가 포함되면 자동 마스킹 필터 적용 고려
