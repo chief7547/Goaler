@@ -42,6 +42,13 @@ user_preferences:
       items:
         type: string
       description: 반복되면 싫어하는 패턴 태그
+    onboarding_stage:
+      type: string
+      enum: [STAGE_0_ONBOARDING, STAGE_0_5_LOOT, STAGE_1_ENERGY, STAGE_1_5_BOSS_PREVIEW, STAGE_2_ASCENSION, STAGE_3_SUMMIT]
+      description: "온보딩 진행 단계 — Stage 코드와 동일하게 유지"
+    theme_preference:
+      enum: [GAME, PROFESSIONAL]
+      description: "메타포 테마 (게임 모드/전문가 모드 등)"
     updated_at:
       type: string
       format: date-time
@@ -57,7 +64,8 @@ player_progress:
       description: 현재 집중 중인 목표 ID (없으면 null)
     stage_label:
       type: string
-      description: "Stage 이름 또는 레벨 코드 (예: STAGE_0_ONBOARDING)"
+      enum: [STAGE_0_ONBOARDING, STAGE_0_5_LOOT, STAGE_1_ENERGY, STAGE_1_5_BOSS_PREVIEW, STAGE_2_ASCENSION, STAGE_3_SUMMIT]
+      description: "Stage 코드 (문자열) — 온보딩/Stage 매핑은 docs/BOSS_STAGE_EXAMPLES.md 참조"
     level:
       type: integer
       minimum: 0

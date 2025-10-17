@@ -12,6 +12,12 @@ def test_create_goal_initialises_state() -> None:
     assert current_state["goal_title"] == "My Test Goal"
     assert "metrics" in current_state
     assert isinstance(current_state["metrics"], list)
+    assert current_state["onboarding_stage"] == "STAGE_0_ONBOARDING"
+    assert current_state["feature_flags"] == {
+        "loot": False,
+        "energy": False,
+        "boss": False,
+    }
 
 
 def test_add_metric_updates_state() -> None:
@@ -59,3 +65,16 @@ def test_finalize_goal_clears_state() -> None:
     agent.finalize_goal(conv_id)
 
     assert agent.state_manager.get_state(conv_id) is None
+
+
+def test_onboarding_context_defaults() -> None:
+    agent = GoalSettingAgent()
+    conv_id = "ctx_conv"
+    agent.create_goal(conv_id, "Context Goal")
+
+    context = agent.get_onboarding_context(conv_id)
+
+    assert context["onboarding_stage"] == "STAGE_0_ONBOARDING"
+    assert context["feature_flags"]["loot"] is False
+    assert context["feature_flags"]["energy"] is False
+    assert context["feature_flags"]["boss"] is False

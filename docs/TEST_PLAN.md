@@ -5,6 +5,7 @@
   - `create_boss_stage` → 데이터가 올바르게 저장되는지, stage_order 자동 증가 검증
   - `list_boss_stages` → 순서 정렬, 상태 필터링
   - 경고 레벨 업데이트(`player_progress`) → Warning/Critical/Emergency 단계별 상태 변화 확인
+  - `user_preferences` 업데이트 → `onboarding_stage`, `theme_preference` 저장/변경 검증
 - `GoalSettingAgent`
   - `define_boss_stages` → 사용자 입력 모킹 후 boss_stages가 State/Storage에 반영되는지 확인
   - `propose_weekly_plan` / `propose_daily_tasks` → LLM 모킹 후 State 업데이트 검증
@@ -18,6 +19,11 @@
 3. **보스전 성공/실패 루프**
    - 특정 보스전이 활성화된 상태에서 준비 퀘스트 완료 → 성공 조건 충족 → Stage 승급/Relic 생성 확인
    - 실패 흐름: `NEEDS_POTION` 연속 발생 → 회복 루틴 제안 → 재도전 → 성공 시 전리품 보호 확인
+4. **온보딩 해금 시나리오**
+   - Stage 0: 전리품/보스전이 숨겨져 있는지 확인
+   - Stage 0.5: 전리품 칩만 노출, 텍스트 입력 선택
+   - Stage 1: 에너지 버튼 표시, 회복 루틴 제안 확인
+   - Stage 1.5: 보스전 카드가 “핵심 마일스톤”으로 표시된 후 Stage 2에서 정식 보스 명칭 사용
 
 ## 3. UI/시각 요소 점검
 - 대시보드 상단 카드가 Stage/보스전 상태에 따라 변경되는지 스냅샷 테스트
