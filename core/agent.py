@@ -7,6 +7,18 @@ from typing import Any
 
 from .state_manager import StateManager
 
+STAGE_0 = "STAGE_0_ONBOARDING"
+
+
+def _default_feature_flags() -> dict[str, bool]:
+    """Return feature exposure flags for the initial onboarding stage."""
+
+    return {
+        "loot": False,
+        "energy": False,
+        "boss": False,
+    }
+
 
 def _coerce_metric_details(
     metric_details: dict | None,
@@ -88,6 +100,8 @@ class GoalSettingAgent:
             "goal_title": title,
             "metrics": [],
             "motivation": None,
+            "onboarding_stage": STAGE_0,
+            "feature_flags": _default_feature_flags(),
         }
         self.state_manager.new_conversation(conversation_id, initial_state)
         return self.state_manager.get_state(conversation_id)
@@ -134,3 +148,19 @@ class GoalSettingAgent:
         )
         self.state_manager.end_conversation(conversation_id)
         return True
+
+    def get_onboarding_context(self, conversation_id: str) -> dict[str, Any]:
+        """Expose onboarding stage and feature flags for UI/adapters."""
+
+        current_state = self.state_manager.get_state(conversation_id) or {}
+        stage = current_state.get("onboarding_stage", STAGE_0)
+        feature_flags = {
+            "loot": False,
+            "energy": False,
+            "boss": False,
+        }
+        feature_flags.update(current_state.get("feature_flags", {}))
+        return {
+            "onboarding_stage": stage,
+            "feature_flags": feature_flags,
+        }

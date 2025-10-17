@@ -9,7 +9,11 @@ from pathlib import Path
 from dotenv import load_dotenv
 from openai import OpenAI
 
-from core.agent import GoalSettingAgent, SYSTEM_PROMPT
+from core.agent import STAGE_0, GoalSettingAgent, SYSTEM_PROMPT
+
+STAGE_LABELS = {
+    STAGE_0: "Stage 0 – Spark Awakening",
+}
 
 
 DEFAULT_CHAT_MODEL = "gpt-5-mini"
@@ -108,8 +112,15 @@ def _run_mock_conversation():
         if not goal_created:
             title = user_input.strip() or "나의 목표"
             agent.create_goal(conversation_id=conversation_id, title=title)
+            context = agent.get_onboarding_context(conversation_id)
+            stage_code = context["onboarding_stage"]
+            stage_label = STAGE_LABELS.get(stage_code, stage_code)
             print(
-                f"Goaler: '{title}' 목표를 생성했어요. 진행 상황을 어떻게 측정하면 좋을까요?",
+                f"Goaler: '{title}' 목표를 생성했어요. 지금은 {stage_label} 단계라서 한 걸음씩만 가볼게요.",
+                flush=True,
+            )
+            print(
+                "Goaler: 오늘은 작게 해볼 '기본 퀘스트' 하나만 떠올려볼까요? 전리품이나 에너지 체크는 아직 숨겨 둘게요.",
                 flush=True,
             )
             goal_created = True
