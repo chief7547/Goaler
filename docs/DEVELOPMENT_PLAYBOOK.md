@@ -85,7 +85,7 @@
 - Mock 모드 전용 테스트 모두 통과
 
 ### Artifacts
-- 초기 사용자 스토리 시연 기록(스크린샷/터미널 로그)
+- 초기 사용자 스토리 시연 기록(스크린샷/터미널 로그) → `reports/mock_loop_stage0.log`
 
 ### Hand-off Checklist
 - [x] Mock 루프 시연 결과 공유 (`app.py` Stage 0 대화 흐름 정비)
