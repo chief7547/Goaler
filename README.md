@@ -38,6 +38,7 @@ PYTHONPATH=. pytest
 ## 데이터 저장 전략
 - **MVP**: SQLite를 기본 저장소로 사용합니다. 별도 서버가 필요 없고 파일 하나로 목표·메트릭·대화 기록(선택)을 영구 보관할 수 있습니다.
 - **확장 단계**: PostgreSQL 등 서버형 DB로 전환할 수 있도록 구조를 분리해 두었습니다. 환경 변수로 연결 문자열만 바꾸면 마이그레이션이 가능합니다.
+- 기본 제공 세션 팩토리는 `sqlite:///data/goaler.db` 파일을 자동으로 생성하며, 테스트에서는 `sqlite:///:memory:` 기반의 Pytest fixture(`tests/conftest.py`)로 격리된 세션을 사용합니다.
 
 저장 예상 테이블 및 경로 정책
 - 기본 DB 파일: `data/goaler.db` (환경 변수 `GOALER_DATABASE_URL`로 경로/엔진 재정의 가능)

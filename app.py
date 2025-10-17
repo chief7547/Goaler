@@ -140,7 +140,9 @@ def _run_openai_conversation():
     try:
         client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
     except Exception as exc:
-        print(f"오류: OpenAI 클라이언트 초기화에 실패했습니다. OPENAI_API_KEY를 확인하세요. 에러: {exc}")
+        print(
+            f"오류: OpenAI 클라이언트 초기화에 실패했습니다. OPENAI_API_KEY를 확인하세요. 에러: {exc}"
+        )
         return
 
     agent = GoalSettingAgent()
@@ -195,7 +197,12 @@ def _run_openai_conversation():
                                 "unit": {"type": "string"},
                                 "initial_value": {"type": "number"},
                             },
-                            "required": ["metric_name", "metric_type", "target_value", "unit"],
+                            "required": [
+                                "metric_name",
+                                "metric_type",
+                                "target_value",
+                                "unit",
+                            ],
                         },
                         "metric_name": {"type": "string"},
                         "metric_type": {"type": "string"},

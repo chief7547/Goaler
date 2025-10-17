@@ -31,7 +31,9 @@ def propose_weekly_plan(goal_id: str, boss_id: str, weekly_plan: list[dict]) -> 
     """Schema stub for the `propose_weekly_plan` tool."""
 
 
-def propose_daily_tasks(goal_id: str, weekly_step: dict, daily_tasks: list[dict]) -> None:
+def propose_daily_tasks(
+    goal_id: str, weekly_step: dict, daily_tasks: list[dict]
+) -> None:
     """Schema stub for the `propose_daily_tasks` tool."""
 
 

@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from textwrap import dedent
 from typing import Any, Iterable
 
-from .storage import InMemoryStorage
+from .storage import SQLAlchemyStorage, create_session
 
 from .state_manager import StateManager
 
@@ -93,22 +93,25 @@ SYSTEM_PROMPT = dedent(
 class GoalSettingAgent:
     """Manage the conversation state while responding to tool calls."""
 
-    def __init__(self, *, storage: InMemoryStorage | None = None) -> None:
+    def __init__(self, *, storage: SQLAlchemyStorage | None = None) -> None:
         self.state_manager = StateManager()
-        self.storage = storage or InMemoryStorage()
+        self.storage = storage or SQLAlchemyStorage(create_session())
 
     def create_goal(self, conversation_id: str, title: str) -> dict | None:
         """Initialise a new goal in the state manager."""
 
+        goal_record = self.storage.create_goal({"title": title})
         initial_state: dict[str, Any] = {
-            "goal_title": title,
+            "goal_id": goal_record["goal_id"],
+            "goal_title": goal_record["title"],
             "metrics": [],
             "motivation": None,
             "onboarding_stage": STAGE_0,
             "feature_flags": _default_feature_flags(),
-            "boss_stages": [],
+            "boss_stage_ids": [],
             "weekly_plan": {},
             "current_variations": [],
+            "accepted_quests": [],
         }
         self.state_manager.new_conversation(conversation_id, initial_state)
         return self.state_manager.get_state(conversation_id)
@@ -185,8 +188,9 @@ class GoalSettingAgent:
         """Persist boss stages and update conversational snapshot."""
 
         current_state = self.state_manager.get_state(conversation_id) or {}
-        existing = current_state.setdefault("boss_stages", [])
+        existing = current_state.setdefault("boss_stage_ids", [])
 
+        goal_id = current_state.get("goal_id", goal_id)
         created: list[dict] = []
         next_order = len(existing) + 1
         for candidate in boss_candidates:
@@ -196,7 +200,7 @@ class GoalSettingAgent:
             stage_dict = self.storage.create_boss_stage(goal_id, payload)
             created.append(stage_dict)
 
-        existing.extend(created)
+        existing.extend(stage_dict["boss_id"] for stage_dict in created)
         self.state_manager.update_state(conversation_id, current_state)
         return {"status": "ok", "boss_stages": created}
 
@@ -246,9 +250,10 @@ class GoalSettingAgent:
     ) -> dict:
         """Confirm quest selection and persist via storage."""
 
-        quest = self.storage.create_quest(goal_id, quest_choice)
         current_state = self.state_manager.get_state(conversation_id) or {}
-        current_state.setdefault("accepted_variations", []).append(quest)
+        goal_id = current_state.get("goal_id", goal_id)
+        quest = self.storage.create_quest(goal_id, quest_choice)
+        current_state.setdefault("accepted_quests", []).append(quest["quest_id"])
         current_state["current_variations"] = []
         self.state_manager.update_state(conversation_id, current_state)
         return {
@@ -264,10 +269,10 @@ class GoalSettingAgent:
         """Record quest execution outcome in storage and update state."""
 
         payload = dict(payload)
-        payload.setdefault("occurred_at", datetime.now(timezone.utc).isoformat())
+        payload.setdefault("occurred_at", datetime.now(timezone.utc))
         log = self.storage.log_quest_event(payload)
         current_state = self.state_manager.get_state(conversation_id) or {}
-        current_state.setdefault("quest_logs", []).append(log)
+        current_state.setdefault("quest_logs", []).append(log["log_id"])
         self.state_manager.update_state(conversation_id, current_state)
         return {
             "status": "ok",

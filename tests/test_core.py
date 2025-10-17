@@ -1,9 +1,16 @@
+from datetime import datetime, timezone
+
+import pytest
+
 from core.agent import GoalSettingAgent
-from core.storage import InMemoryStorage
 
 
-def test_create_goal_initialises_state() -> None:
-    agent = GoalSettingAgent()
+@pytest.fixture
+def agent(storage):
+    return GoalSettingAgent(storage=storage)
+
+
+def test_create_goal_initialises_state(agent) -> None:
     conv_id = "test_conv_123"
 
     agent.create_goal(conversation_id=conv_id, title="My Test Goal")
@@ -21,8 +28,7 @@ def test_create_goal_initialises_state() -> None:
     }
 
 
-def test_add_metric_updates_state() -> None:
-    agent = GoalSettingAgent()
+def test_add_metric_updates_state(agent) -> None:
     conv_id = "test_conv_123"
     agent.create_goal(conv_id, "My Test Goal")
 
@@ -44,8 +50,7 @@ def test_add_metric_updates_state() -> None:
     assert added_metric["target_value"] == 10
 
 
-def test_set_motivation_updates_state() -> None:
-    agent = GoalSettingAgent()
+def test_set_motivation_updates_state(agent) -> None:
     conv_id = "test_conv_123"
     agent.create_goal(conv_id, "My Test Goal")
 
@@ -56,8 +61,7 @@ def test_set_motivation_updates_state() -> None:
     assert current_state["motivation"] == "Improve focus"
 
 
-def test_finalize_goal_clears_state() -> None:
-    agent = GoalSettingAgent()
+def test_finalize_goal_clears_state(agent) -> None:
     conv_id = "test_conv_123"
     agent.create_goal(conv_id, "Finalize Test")
 
@@ -68,8 +72,7 @@ def test_finalize_goal_clears_state() -> None:
     assert agent.state_manager.get_state(conv_id) is None
 
 
-def test_onboarding_context_defaults() -> None:
-    agent = GoalSettingAgent()
+def test_onboarding_context_defaults(agent) -> None:
     conv_id = "ctx_conv"
     agent.create_goal(conv_id, "Context Goal")
 
@@ -81,12 +84,10 @@ def test_onboarding_context_defaults() -> None:
     assert context["feature_flags"]["boss"] is False
 
 
-def test_define_boss_stages_persisted_and_sorted() -> None:
-    storage = InMemoryStorage()
-    agent = GoalSettingAgent(storage=storage)
+def test_define_boss_stages_persisted_and_sorted(agent, storage) -> None:
     conv_id = "conv_boss"
-    goal_id = "goal-123"
     agent.create_goal(conv_id, "Stage Goal")
+    goal_id = agent.state_manager.get_state(conv_id)["goal_id"]
 
     response = agent.define_boss_stages(
         conv_id,
@@ -113,15 +114,13 @@ def test_define_boss_stages_persisted_and_sorted() -> None:
     assert stored[0]["stage_order"] == 1
     assert stored[0]["title"] == "사업자등록 완료"
     state = agent.state_manager.get_state(conv_id)
-    assert len(state["boss_stages"]) == 2
+    assert len(state["boss_stage_ids"]) == 2
 
 
-def test_propose_weekly_plan_updates_state() -> None:
-    storage = InMemoryStorage()
-    agent = GoalSettingAgent(storage=storage)
+def test_propose_weekly_plan_updates_state(agent, storage) -> None:
     conv_id = "conv_week"
-    goal_id = "goal-456"
     agent.create_goal(conv_id, "Stage Goal")
+    goal_id = agent.state_manager.get_state(conv_id)["goal_id"]
     boss = agent.define_boss_stages(
         conv_id,
         goal_id,
@@ -143,11 +142,10 @@ def test_propose_weekly_plan_updates_state() -> None:
     assert state["weekly_plan"][boss["boss_id"]] == weekly_steps
 
 
-def test_propose_daily_tasks_sets_variations() -> None:
-    agent = GoalSettingAgent()
+def test_propose_daily_tasks_sets_variations(agent) -> None:
     conv_id = "conv_daily"
-    goal_id = "goal-daily"
     agent.create_goal(conv_id, "Daily Goal")
+    goal_id = agent.state_manager.get_state(conv_id)["goal_id"]
 
     daily_tasks = [
         {"title": "15분 러닝", "difficulty_tier": "EASY"},
@@ -160,11 +158,10 @@ def test_propose_daily_tasks_sets_variations() -> None:
     assert state["current_variations"] == daily_tasks
 
 
-def test_propose_quests_locked_until_loot_unlocked() -> None:
-    agent = GoalSettingAgent()
+def test_propose_quests_locked_until_loot_unlocked(agent) -> None:
     conv_id = "conv_variation"
-    goal_id = "goal-variation"
     agent.create_goal(conv_id, "Variation Goal")
+    goal_id = agent.state_manager.get_state(conv_id)["goal_id"]
 
     result = agent.propose_quests(
         conv_id,
@@ -175,11 +172,10 @@ def test_propose_quests_locked_until_loot_unlocked() -> None:
     assert result["reason"] == "ONBOARDING_STAGE_LOCKED"
 
 
-def test_propose_quests_after_unlock_returns_variations() -> None:
-    agent = GoalSettingAgent()
+def test_propose_quests_after_unlock_returns_variations(agent) -> None:
     conv_id = "conv_variation_unlock"
-    goal_id = "goal-variation-unlock"
     agent.create_goal(conv_id, "Variation Goal")
+    goal_id = agent.state_manager.get_state(conv_id)["goal_id"]
     state = agent.state_manager.get_state(conv_id)
     state["feature_flags"]["loot"] = True
     agent.state_manager.update_state(conv_id, state)
@@ -194,12 +190,10 @@ def test_propose_quests_after_unlock_returns_variations() -> None:
     assert result["variations"][0]["reason"] == "기본 추천 변주"
 
 
-def test_choose_quest_persists_to_storage() -> None:
-    storage = InMemoryStorage()
-    agent = GoalSettingAgent(storage=storage)
+def test_choose_quest_persists_to_storage(agent, storage) -> None:
     conv_id = "conv_choose"
-    goal_id = "goal-choose"
     agent.create_goal(conv_id, "Choose Goal")
+    goal_id = agent.state_manager.get_state(conv_id)["goal_id"]
     state = agent.state_manager.get_state(conv_id)
     state["feature_flags"]["loot"] = True
     agent.state_manager.update_state(conv_id, state)
@@ -212,14 +206,14 @@ def test_choose_quest_persists_to_storage() -> None:
     }
     response = agent.choose_quest(conv_id, goal_id, quest_choice)
     assert response["quest"]["title"] == "러닝 20분"
+    stored = storage.get_quest(response["quest"]["quest_id"])
+    assert stored is not None
 
 
-def test_log_quest_outcome_updates_state() -> None:
-    storage = InMemoryStorage()
-    agent = GoalSettingAgent(storage=storage)
+def test_log_quest_outcome_updates_state(agent, storage) -> None:
     conv_id = "conv_log"
-    goal_id = "goal-log"
     agent.create_goal(conv_id, "Log Goal")
+    goal_id = agent.state_manager.get_state(conv_id)["goal_id"]
 
     quest = agent.choose_quest(
         conv_id,
@@ -233,7 +227,7 @@ def test_log_quest_outcome_updates_state() -> None:
             "goal_id": goal_id,
             "quest_id": quest["quest_id"],
             "outcome": "COMPLETED",
-            "occurred_at": "2025-02-15T00:00:00",
+            "occurred_at": datetime(2025, 2, 15, tzinfo=timezone.utc),
             "energy_status": "READY_FOR_BOSS",
         },
     )
@@ -242,12 +236,10 @@ def test_log_quest_outcome_updates_state() -> None:
     assert len(state.get("quest_logs", [])) == 1
 
 
-def test_log_quest_outcome_handles_failure() -> None:
-    storage = InMemoryStorage()
-    agent = GoalSettingAgent(storage=storage)
+def test_log_quest_outcome_handles_failure(agent, storage) -> None:
     conv_id = "conv_log_fail"
-    goal_id = "goal-log-fail"
     agent.create_goal(conv_id, "Log Goal")
+    goal_id = agent.state_manager.get_state(conv_id)["goal_id"]
     quest = agent.choose_quest(
         conv_id,
         goal_id,
@@ -260,7 +252,7 @@ def test_log_quest_outcome_handles_failure() -> None:
             "goal_id": goal_id,
             "quest_id": quest["quest_id"],
             "outcome": "FAILED",
-            "occurred_at": "2025-02-15T00:00:00",
+            "occurred_at": datetime(2025, 2, 15, tzinfo=timezone.utc),
             "energy_status": "NEEDS_POTION",
             "perceived_difficulty": "TOO_HARD",
             "loot_type": "EMOTION",
@@ -268,5 +260,5 @@ def test_log_quest_outcome_handles_failure() -> None:
     )
 
     assert fail_log["log"]["outcome"] == "FAILED"
-    state = agent.state_manager.get_state(conv_id)
-    assert state["quest_logs"][-1]["energy_status"] == "NEEDS_POTION"
+    logs = storage.list_recent_quest_logs(goal_id)
+    assert logs[0]["energy_status"] == "NEEDS_POTION"

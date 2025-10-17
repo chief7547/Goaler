@@ -22,9 +22,9 @@
   - LLM이 호출하는 `create_goal`, `add_metric`, `define_boss_stages`, `propose_weekly_plan`, `propose_daily_tasks`, `propose_quests`, `choose_quest`, `log_quest_outcome`, `set_motivation`, `finalize_goal` 등의 비즈니스 로직을 메소드로 포함합니다.
 
 - **`core/state_manager.py` (`StateManager`):**
-  - 대화가 진행되는 동안 사용자의 목표 설정 내용을 임시로 저장하는 **단기 기억 장치**입니다.
-  - 각 대화별로 상태를 분리하여 관리하며, 대화가 완료되면 상태를 삭제합니다.
-  - 현재는 메모리 내 딕셔너리로 구현되어 있으나, 향후 Redis 등으로 확장될 수 있습니다.
+  - 대화가 진행되는 동안 필요한 최소한의 컨텍스트(대화 ID → `goal_id`, 기능 해금 플래그, 미확정 변주 등)를 보관하는 **단기 메모리**입니다.
+  - 모든 영속 데이터(목표, 보스전, 퀘스트, 전리품 로그)는 `core/storage.py`를 통해 데이터베이스에 저장합니다. 즉, DB가 단일 진실 공급원(Single Source of Truth)이고 StateManager는 포인터/캐시만 유지합니다.
+  - 이 원칙에 따라 GoalSettingAgent의 각 메서드는 먼저 Storage로 데이터를 쓰거나 읽고, 필요한 경우에만 StateManager를 업데이트합니다.
 
 - **`core/llm_prompt.py`:**
   - LLM 에이전트의 행동을 정의하는 **지시문(Instruction)과 도구(Tool) 명세서**입니다.
