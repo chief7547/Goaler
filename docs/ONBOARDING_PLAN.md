@@ -2,6 +2,18 @@
 
 > 목적: 신규 사용자가 인지적 과부하 없이 핵심 루프를 익히고, 순차적으로 보스전/전리품/에너지 기능을 해금하도록 안내하기 위한 구체 계획.
 
+## Stage 코드 매핑
+| Stage 코드 | 사용자 노출 명칭 | 해금 요약 |
+| --- | --- | --- |
+| `STAGE_0_ONBOARDING` | Stage 0 – Spark Awakening | 전리품/에너지 숨김, 기초 루프 학습 |
+| `STAGE_0_5_LOOT` | Stage 0.5 – Loot Introduction | 전리품 칩만 해금 |
+| `STAGE_1_ENERGY` | Stage 1 – Energy Awareness | 에너지 버튼, 회복 루틴 안내 |
+| `STAGE_1_5_BOSS_PREVIEW` | Stage 1.5 – Boss Stage Preview | 보스전(핵심 마일스톤) 카드 미리보기, 테마 선택 |
+| `STAGE_2_ASCENSION` | Stage 2 – Ascension Path | 전체 보스/변주/전리품 루프 활성화 |
+| `STAGE_3_SUMMIT` | Stage 3 – Summit Breakthrough | 장기 목표 마무리 및 확장 기능 |
+
+> `player_progress.stage_label`과 `user_preferences.onboarding_stage`에는 위 코드 값을 저장한다. UI/리포트에서는 본 문서의 한글 명칭을 사용한다.
+
 ## Stage 0 – Spark Awakening (Day 0~3)
 - **노출 요소:** 목표 생성, 일일 퀘스트 완료, 칭찬 메시지
 - **숨김 요소:** 전리품 기록, 에너지 체크, 보스전, Stage UI

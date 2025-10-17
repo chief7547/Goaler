@@ -34,6 +34,23 @@
 - `finalize_goal(goal_id)`
 - `update_player_progress(user_id, progress: PlayerProgressUpdate)`
 
+### ThemeTermResolver (권장)
+- 입력: `user_preferences.theme_preference`, `player_progress.stage_label`
+- 출력: `theme_terms` 딕셔너리. 예)
+  ```json
+  {
+    "quest": "퀘스트",
+    "boss": "보스",
+    "loot": "전리품",
+    "potion": "물약"
+  }
+  ```
+- 규칙
+  - `theme_preference = GAME` → Boss/Loot/Potion/Quest 용어 사용.
+  - `theme_preference = PROFESSIONAL` → “핵심 마일스톤/성과·인사이트 로그/재충전/실행 계획”으로 치환.
+  - Stage 코드가 `STAGE_1_5_BOSS_PREVIEW` 미만이면, 보스/전리품 용어를 노출하지 않고 기본 표현(“오늘의 할 일”, “기록”)을 반환.
+- 모든 함수 프롬프트(`Daily Prompt Templates`, `Response Templates`)는 이 Resolver가 생성한 `theme_terms`를 입력으로 받아 일관된 표현을 유지한다.
+
 ## 2. LLM 함수 (Tool) 계약
 
 -### 2.1 create_goal
@@ -301,7 +318,7 @@
 ### 2.9 set_motivation / finalize_goal
 - 기존 설계와 동일. 단, `set_motivation`은 감정 노트/성향 요약과 함께 저장하고, `finalize_goal`은 요약을 대화 로그에도 기록합니다.
 - Stage 변화 로직과 연동: `player_progress`의 Stage/레벨/스트릭을 업데이트할 때 승급/강등 여부를 판단해 텍스트 연출과 경고 메시지를 챗봇이 전송합니다.
-- 온보딩 연동: `user_preferences.onboarding_stage`가 INTRO/QUEST_LOOP 등 초기 단계인 경우, 전리품/에너지 관련 도구 호출을 지연하거나 설명을 간소화합니다. 해금 조건은 `docs/ONBOARDING_PLAN.md`를 따라야 합니다.
+- 온보딩 연동: `user_preferences.onboarding_stage`가 `STAGE_0_ONBOARDING`~`STAGE_1_5_BOSS_PREVIEW` 구간에 있을 때는 전리품/에너지 관련 도구 호출을 단계별로 지연하거나 설명을 간소화합니다. 해금 조건은 `docs/ONBOARDING_PLAN.md`를 따라야 합니다.
 
 ## 3. 저장소 메서드 요약
 - `Storage` 클래스는 위 함수들이 필요로 하는 CRUD를 전부 제공해야 하며, 각 메서드는 실패 시 명시적 예외를 던집니다. 예)
@@ -345,4 +362,4 @@ class Storage:
   `challenge_appetite`, `energy_status`, `loot_type`, `boss_stages` 등을 근거로 톤을
   변화시키도록 합니다.
 - 응답 템플릿 활용: `docs/RESPONSE_TEMPLATES.md`의 문구를 우선적으로 사용하고, LLM은 플레이스홀더만 채우거나 템플릿과 생성 문장을 조합합니다. 같은 문장이 반복되지 않도록 최근 사용 템플릿을 캐시합니다.
-- 온보딩 단계 반영: `user_preferences.onboarding_stage`가 INTRO인 경우 복잡한 기능 언급을 피하고, Stage 0.5/1/1.5 해금 시점에 맞춰 “새 장비를 소개할게요” 등 단계별 문구를 사용합니다.
+- 온보딩 단계 반영: `user_preferences.onboarding_stage`가 `STAGE_0_ONBOARDING`이면 복잡한 기능 언급을 피하고, Stage 0.5/1/1.5에 해당하는 코드(`STAGE_0_5_LOOT`, `STAGE_1_ENERGY`, `STAGE_1_5_BOSS_PREVIEW`) 해금 시점에 맞춰 “새 장비를 소개할게요” 등 단계별 문구를 사용합니다.
