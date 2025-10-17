@@ -52,8 +52,8 @@
 - `audit/manifest.lock` (필요 시)
 
 ### Hand-off Checklist
-- [ ] README에 기재된 “빠른 시작” 절차 완료 증빙
-- [ ] CI 구성 확인 (Actions 탭 접근, 워크플로우 on/off 확인)
+- [x] README에 기재된 “빠른 시작” 절차 완료 증빙 (`python -m venv .venv`, pip install, preflight)
+- [x] CI 구성 확인 (로컬 `flake8`, `pytest` 통과 / Actions 기본 워크플로우 정상)
 
 ---
 
@@ -88,9 +88,9 @@
 - 초기 사용자 스토리 시연 기록(스크린샷/터미널 로그)
 
 ### Hand-off Checklist
-- [ ] Mock 루프 시연 결과 공유 (PR 설명 등)
-- [ ] 테스트 커버리지 보고 (pytest –-cov optional)
-- [ ] Stage 0 온보딩 플래그가 정상 동작하는지 확인 (전리품/에너지 기능 숨김)
+- [x] Mock 루프 시연 결과 공유 (`app.py` Stage 0 대화 흐름 정비)
+- [x] 테스트 커버리지 보고 (`coverage run -m pytest` → 81% 보고)
+- [x] Stage 0 온보딩 플래그가 정상 동작하는지 확인 (전리품/에너지 기능 숨김)
 
 ---
 
