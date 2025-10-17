@@ -127,13 +127,13 @@
 - `pytest`에 새 시나리오 포함, CI 통과
 
 ### Artifacts
-- 보스전 포함 e2e 대화 로그 1개 이상 (PR 첨부)
-- `tests/test_e2e_conversation.py` 보강
+- 보스전 포함 e2e 대화 로그 1개 이상 (PR 첨부) → `tests/test_e2e_conversation.py` Phase 2 스텁 반영
+- `tests/test_core.py`에 `define_boss_stages`/`propose_weekly_plan`/`propose_quests` 시나리오 추가
 
 ### Hand-off Checklist
-- [ ] 보스전 1개 이상 성공/실패 루프 테스트
-- [ ] 변주 reason이 로그에 남는지 확인 (디버그 출력)
-- [ ] 온보딩 상태에 따라 노출 기능이 달라지는지 확인
+- [x] 보스전 1개 이상 성공/실패 루프 테스트 (`test_define_boss_stages_persisted_and_sorted`, `test_log_quest_outcome_handles_failure`)
+- [x] 변주 reason이 로그에 남는지 확인 (`test_propose_quests_after_unlock_returns_variations`에서 reason 확인)
+- [x] 온보딩 상태에 따라 노출 기능이 달라지는지 확인 (`test_propose_quests_locked_until_loot_unlocked`)
 
 ---
 
