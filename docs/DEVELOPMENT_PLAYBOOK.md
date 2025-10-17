@@ -89,7 +89,7 @@
 
 ### Hand-off Checklist
 - [x] Mock 루프 시연 결과 공유 (`app.py` Stage 0 대화 흐름 정비)
-- [x] 테스트 커버리지 보고 (`coverage run -m pytest` → 81% 보고)
+- [x] 테스트 커버리지 보고 (`coverage run -m pytest` → 86% 보고)
 - [x] Stage 0 온보딩 플래그가 정상 동작하는지 확인 (전리품/에너지 기능 숨김)
 
 ---
