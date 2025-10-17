@@ -74,7 +74,8 @@
    - `python app.py` 실행 후 CLI에서 목표→퀘스트 입력 흐름 테스트  
    - Mock 모드 메시지가 README 예시와 일치하는지 확인.
 3. **전리품 입력 최소형**  
-   - 사용자가 퀘스트 완료 후 “전리품 유형(성과/깨달음/느낌) + 한 줄 메모”를 남길 수 있도록 CLI 루틴 추가.
+   - Stage 0에서는 칭찬 메시지와 다음 퀘스트 안내만 노출한다(`docs/ONBOARDING_PLAN.md`).
+   - 해금 이후 사용자가 퀘스트 완료 후 “전리품 유형(성과/깨달음/느낌) 칩”을 탭하는 것만으로 기록할 수 있도록 CLI 루틴 추가(텍스트 입력은 선택 사항).
 4. **테스트 강화**  
    - `tests/test_core.py`에 기본 상태 검증이 포함되어 있는지 확인  
    - `pytest tests/test_core.py tests/test_e2e_conversation.py` 통과.
@@ -89,6 +90,7 @@
 ### Hand-off Checklist
 - [ ] Mock 루프 시연 결과 공유 (PR 설명 등)
 - [ ] 테스트 커버리지 보고 (pytest –-cov optional)
+- [ ] Stage 0 온보딩 플래그가 정상 동작하는지 확인 (전리품/에너지 기능 숨김)
 
 ---
 
@@ -106,16 +108,19 @@
 1. **보스전 데이터/스토리지 구현**  
    - `boss_stages` CRUD 추가 (`core/storage.py`)  
    - 샘플 보스전 생성 스크립트 또는 테스트 작성 (`docs/BOSS_STAGE_EXAMPLES.md` 참조)
+   - 온보딩 단계에 따라 용어가 “보스전/핵심 마일스톤”으로 변경되는지 확인
 2. **LLM Toolchain 확장**  
    - `GoalSettingAgent`에 새 도구 호출 연결  
    - 사용자가 보스전/주간/일일 단계를 확정하는 질문 흐름 구현
 3. **일일 변주 로직**  
    - `quest_logs`에 `loot_type`, `energy_status`, `llm_variation_seed` 저장  
    - LLM `reason`이 변주 이유(보스 준비, 회복 등)를 설명하도록 프롬프트 보완
+   - Stage 0에서는 변주 모달을 표시하지 않도록 UI/상태 가드 추가
 4. **UX 반영**  
    - 텍스트 와이어프레임(`docs/wireframes/boss_timeline.md`, `dashboard.md`)과 데이터 필드 일치 여부 검토
 5. **테스트**  
    - 보스전 생성→주간 계획→일일 변주까지의 통합 테스트 추가 (`docs/TEST_PLAN.md §2`)
+   - 온보딩 단계별 기능 해금 시나리오(Stage 0→0.5→1→1.5) 포함
 
 ### Quality Gates
 - 보스전 정의 → 주간 단계 → 일일 변주가 시뮬레이션에서 정상 동작
@@ -128,6 +133,7 @@
 ### Hand-off Checklist
 - [ ] 보스전 1개 이상 성공/실패 루프 테스트
 - [ ] 변주 reason이 로그에 남는지 확인 (디버그 출력)
+- [ ] 온보딩 상태에 따라 노출 기능이 달라지는지 확인
 
 ---
 
@@ -143,10 +149,13 @@
 1. **프롬프트 업데이트**  
    - 시간대(아침/점심/저녁), 전리품 유형, 에너지 상태 별 조건 반영  
    - Boss stage 상황(`READY_FOR_BOSS`, `NEEDS_POTION`)에 따른 대사 변화 구현
-2. **샘플 대화 작성**  
+2. **응답 템플릿 정비**  
+   - `docs/RESPONSE_TEMPLATES.md`에 축하/감정 공감/회복 문구를 정리하고, LLM 호출 전 템플릿을 우선 탐색하도록 구현  
+   - 동일 템플릿 반복을 방지하기 위해 최근 사용 목록 캐시
+3. **샘플 대화 작성**  
    - 각 성향(`challenge_appetite`)별 트랜스크립트 생성  
    - 월간 보고서/전리품 회고 예시 대화 작성
-3. **수동 검증**  
+4. **수동 검증**  
    - Mock 모드에서 대사를 확인하고, “전리품 덱”, “회복 루틴” 등의 키워드가 자연스럽게 쓰이는지 평가
 
 ### Quality Gates

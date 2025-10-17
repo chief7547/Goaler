@@ -301,6 +301,7 @@
 ### 2.9 set_motivation / finalize_goal
 - 기존 설계와 동일. 단, `set_motivation`은 감정 노트/성향 요약과 함께 저장하고, `finalize_goal`은 요약을 대화 로그에도 기록합니다.
 - Stage 변화 로직과 연동: `player_progress`의 Stage/레벨/스트릭을 업데이트할 때 승급/강등 여부를 판단해 텍스트 연출과 경고 메시지를 챗봇이 전송합니다.
+- 온보딩 연동: `user_preferences.onboarding_stage`가 INTRO/QUEST_LOOP 등 초기 단계인 경우, 전리품/에너지 관련 도구 호출을 지연하거나 설명을 간소화합니다. 해금 조건은 `docs/ONBOARDING_PLAN.md`를 따라야 합니다.
 
 ## 3. 저장소 메서드 요약
 - `Storage` 클래스는 위 함수들이 필요로 하는 CRUD를 전부 제공해야 하며, 각 메서드는 실패 시 명시적 예외를 던집니다. 예)
@@ -343,3 +344,5 @@ class Storage:
 - `docs/COACH_TONE_GUIDE.md`에 정리된 말투 가이드를 SYSTEM_PROMPT에 반영하여,
   `challenge_appetite`, `energy_status`, `loot_type`, `boss_stages` 등을 근거로 톤을
   변화시키도록 합니다.
+- 응답 템플릿 활용: `docs/RESPONSE_TEMPLATES.md`의 문구를 우선적으로 사용하고, LLM은 플레이스홀더만 채우거나 템플릿과 생성 문장을 조합합니다. 같은 문장이 반복되지 않도록 최근 사용 템플릿을 캐시합니다.
+- 온보딩 단계 반영: `user_preferences.onboarding_stage`가 INTRO인 경우 복잡한 기능 언급을 피하고, Stage 0.5/1/1.5 해금 시점에 맞춰 “새 장비를 소개할게요” 등 단계별 문구를 사용합니다.
