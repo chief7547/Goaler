@@ -73,10 +73,6 @@ PYTHONPATH=. pytest
 - `docs/COACH_TONE_GUIDE.md`: AI 코치의 말투/응답 패턴 가이드입니다.
 - `docs/LOOT_REPORT_TEMPLATE.md`: 월간/분기 전리품 리포트 구조를 정의합니다.
 - `docs/LLM_USAGE_GUIDE.md`: LLM 모델 사용 전략과 비용 모니터링 지침입니다.
-- `docs/LOOT_REPORT_WORKFLOW.md`: 전리품 리포트 자동화 워크플로우를 설명합니다.
-- `docs/DEVELOPMENT_PLAYBOOK.md`: 단계별 개발 프로세스와 체크리스트입니다.
-- `docs/ONBOARDING_PLAN.md`: 기능 해금이 점진적으로 진행되는 온보딩 계획입니다.
-- `docs/RESPONSE_TEMPLATES.md`: AI 응답에 활용되는 문구 템플릿 모음입니다.
 - `VIBECODE_ENTRY.md`: CLI가 프로젝트를 재생성할 때 사용할 템플릿과 정책을 포함합니다.
 
 ## 추가 도구
