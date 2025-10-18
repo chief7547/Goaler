@@ -5,7 +5,7 @@ from __future__ import annotations
 import random
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Callable, Dict, List, Optional
 
 
 @dataclass
@@ -94,8 +94,14 @@ def _current_time_slot(now: Optional[datetime]) -> str:
 class CoachResponder:
     """Utility to generate tone-aware responses using template guidance."""
 
-    def __init__(self, *, rng: Optional[random.Random] = None):
+    def __init__(
+        self,
+        *,
+        rng: Optional[random.Random] = None,
+        llm_callback: Optional[Callable[[ToneContext], str]] = None,
+    ) -> None:
         self._rng = rng or random.Random()
+        self._llm_callback = llm_callback
 
     def _choose_ack(self, ctx: ToneContext) -> str:
         if ctx.energy_status == "NEEDS_POTION":
@@ -147,8 +153,17 @@ class CoachResponder:
             sections.append(
                 f"오늘은 {terms['boss']} '{ctx.boss_name}' 대비로 어떤 {terms['quest']}을 진행해볼까요?"
             )
+        message = " ".join(section for section in sections if section)
 
-        return " ".join(section for section in sections if section)
+        if len(sections) <= 2 and not loot_msg and not recovery_msg and not ctx.boss_name:
+            if self._llm_callback:
+                return self._llm_callback(ctx)
+            generic = (
+                f"{ack} {header} 오늘은 가볍게 기록부터 남겨볼까요?"
+            )
+            return generic.strip()
+
+        return message
 
 
 __all__ = ["CoachResponder", "ToneContext"]

@@ -164,7 +164,7 @@
 - 리뷰어(또는 본인) 확인 코멘트 기록
 
 ### Artifacts
-- 샘플 대화 로그 (docs/ 또는 PR 첨부) → `tests/test_coach.py` 참고
+- 샘플 대화 로그 (docs/ 또는 PR 첨부) → `docs/COACH_SAMPLE_DIALOGUE.md`, `tests/test_coach.py`
 
 ### Hand-off Checklist
 - [x] 톤 가이드와 실제 응답이 일치하는지 확인 (CoachResponder + compose_coach_reply)
