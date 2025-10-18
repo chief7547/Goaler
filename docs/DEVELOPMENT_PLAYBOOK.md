@@ -201,12 +201,12 @@
 - 토큰 사용량 로깅이 최소 1회 이상 검증됨
 
 ### Artifacts
-- `/reports/sample-user-monthly-YYYY-MM-DD.md`
+- `reports/SAMPLE_MONTHLY_REPORT.md`
 - 토큰 비용 집계 스크립트(예: notebooks or tools/)
 
 ### Hand-off Checklist
-- [ ] 관리자용 비용/성장 지표 대시보드 설계안 공유
-- [ ] 리포트 자동화 계획(PRD/티켓) 생성
+- [x] 관리자용 비용/성장 지표 대시보드 설계안 공유 (`docs/ANALYTICS_PLAN.md`)
+- [x] 리포트 자동화 계획(PRD/티켓) 생성 (`tools/report_worker.py` 스케줄링 스텁)
 
 ---
 
