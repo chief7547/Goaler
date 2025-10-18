@@ -151,7 +151,7 @@
    - 시간대(아침/점심/저녁), 전리품 유형, 에너지 상태 별 조건 반영  
    - Boss stage 상황(`READY_FOR_BOSS`, `NEEDS_POTION`)에 따른 대사 변화 구현
 2. **응답 템플릿 정비**  
-   - `docs/RESPONSE_TEMPLATES.md`에 축하/감정 공감/회복 문구를 정리하고, LLM 호출 전 템플릿을 우선 탐색하도록 구현  
+   - `docs/RESPONSE_TEMPLATES.md`에 축하/감정 공감/회복 문구를 정리하고, LLM 호출 전 템플릿을 우선 탐색하도록 구현 (`core/coach.py`)  
    - 동일 템플릿 반복을 방지하기 위해 최근 사용 목록 캐시
 3. **샘플 대화 작성**  
    - 각 성향(`challenge_appetite`)별 트랜스크립트 생성  
@@ -164,11 +164,11 @@
 - 리뷰어(또는 본인) 확인 코멘트 기록
 
 ### Artifacts
-- 샘플 대화 로그 (docs/ 또는 PR 첨부)
+- 샘플 대화 로그 (docs/ 또는 PR 첨부) → `docs/COACH_SAMPLE_DIALOGUE.md`, `tests/test_coach.py`
 
 ### Hand-off Checklist
-- [ ] 톤 가이드와 실제 응답이 일치하는지 확인
-- [ ] 향후 튜닝 포인트(To-do) 목록 업데이트
+- [x] 톤 가이드와 실제 응답이 일치하는지 확인 (CoachResponder + compose_coach_reply)
+- [x] 향후 튜닝 포인트(To-do) 목록 업데이트 (`docs/COACH_TUNING_BACKLOG.md`)
 
 ---
 
@@ -201,12 +201,12 @@
 - 토큰 사용량 로깅이 최소 1회 이상 검증됨
 
 ### Artifacts
-- `/reports/sample-user-monthly-YYYY-MM-DD.md`
+- `reports/SAMPLE_MONTHLY_REPORT.md`
 - 토큰 비용 집계 스크립트(예: notebooks or tools/)
 
 ### Hand-off Checklist
-- [ ] 관리자용 비용/성장 지표 대시보드 설계안 공유
-- [ ] 리포트 자동화 계획(PRD/티켓) 생성
+- [x] 관리자용 비용/성장 지표 대시보드 설계안 공유 (`docs/ANALYTICS_PLAN.md`)
+- [x] 리포트 자동화 계획(PRD/티켓) 생성 (`tools/report_worker.py` 스케줄링 스텁)
 
 ---
 
@@ -233,7 +233,11 @@
    - 경고 조건(Alert) 정의 (`docs/RISK_REGISTER.md` 기반)
 5. **보안/백업**  
    - Secrets Vault, DB 백업 자동화, 개인정보 보존 정책 수립
-
+6. **리포트 워커 자동화**  
+   - APScheduler 기반 `tools/report_worker.py` 스케줄러로 월간/주간 리포트, 알림을 자동 실행
+   - 실행 내역 및 성공/실패 로그를 중앙화하고 재시도 전략 정의
+7. **리포트 요약 프롬프트 고도화**  
+   - `core/coach.py`에 리포트 전용 SYSTEM_PROMPT를 정의하고 LLM 호출 시 사용
 ### Quality Gates
 - 실제 사용자 대상으로 베타/도그푸드 테스트 실시(기록 남김)
 - 운영 문서(SOP) 작성: 장애 대응, 백업/복원 절차 기록

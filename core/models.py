@@ -21,6 +21,7 @@ class Goal(Base):
     __tablename__ = "goals"
 
     goal_id: Mapped[str] = mapped_column(String, primary_key=True, default=_uuid)
+    user_id: Mapped[str] = mapped_column(String, default="default_user")
     title: Mapped[str] = mapped_column(String, nullable=False)
     goal_type: Mapped[str] = mapped_column(String, default="ONE_TIME")
     motivation: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -107,4 +108,19 @@ class QuestLog(Base):
     quest: Mapped[Quest] = relationship("Quest", back_populates="logs")
 
 
-__all__ = ["Base", "Goal", "BossStage", "Quest", "QuestLog"]
+class UserPreference(Base):
+    __tablename__ = "user_preferences"
+
+    user_id: Mapped[str] = mapped_column(String, primary_key=True)
+    challenge_appetite: Mapped[str] = mapped_column(String, default="MEDIUM")
+    theme_preference: Mapped[str] = mapped_column(String, default="GAME")
+
+
+__all__ = [
+    "Base",
+    "Goal",
+    "BossStage",
+    "Quest",
+    "QuestLog",
+    "UserPreference",
+]

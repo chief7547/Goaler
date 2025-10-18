@@ -5,4 +5,6 @@ __all__ = [
     "state_manager",
     "llm_prompt",
     "storage",
+    "coach",
+    "user_preferences",
 ]
