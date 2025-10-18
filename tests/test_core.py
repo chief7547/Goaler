@@ -1,13 +1,21 @@
 from datetime import datetime, timezone
+import random
 
 import pytest
 
 from core.agent import GoalSettingAgent
+from core.coach import CoachResponder
+
+
+class FixedRandom(random.Random):
+    def choice(self, seq):  # type: ignore[override]
+        return seq[0]
 
 
 @pytest.fixture
 def agent(storage):
-    return GoalSettingAgent(storage=storage)
+    responder = CoachResponder(rng=FixedRandom())
+    return GoalSettingAgent(storage=storage, coach_responder=responder)
 
 
 def test_create_goal_initialises_state(agent) -> None:
@@ -262,3 +270,45 @@ def test_log_quest_outcome_handles_failure(agent, storage) -> None:
     assert fail_log["log"]["outcome"] == "FAILED"
     logs = storage.list_recent_quest_logs(goal_id)
     assert logs[0]["energy_status"] == "NEEDS_POTION"
+
+
+def test_compose_coach_reply_uses_context(agent, storage) -> None:
+    conv_id = "conv_reply"
+    agent.create_goal(conv_id, "Reply Goal")
+    state = agent.state_manager.get_state(conv_id)
+    state["feature_flags"]["loot"] = True
+    agent.state_manager.update_state(conv_id, state)
+    goal_id = state["goal_id"]
+
+    agent.define_boss_stages(
+        conv_id,
+        goal_id,
+        [
+            {
+                "title": "사업자등록 완료",
+                "success_criteria": "등록증 확보",
+            }
+        ],
+    )
+
+    agent.log_quest_outcome(
+        conv_id,
+        {
+            "goal_id": goal_id,
+            "quest_id": agent.choose_quest(
+                conv_id,
+                goal_id,
+                {"title": "러닝", "difficulty_tier": "EASY"},
+            )["quest"]["quest_id"],
+            "outcome": "COMPLETED",
+            "occurred_at": datetime(2025, 1, 1, tzinfo=timezone.utc),
+            "energy_status": "READY_FOR_BOSS",
+            "loot_type": "ACHIEVEMENT",
+            "mood_note": "체중 기록 업데이트",
+        },
+    )
+
+    reply = agent.compose_coach_reply(conv_id, time_of_day="morning")
+
+    assert "체중 기록" in reply
+    assert "보스전" in reply or "핵심 마일스톤" in reply

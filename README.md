@@ -27,7 +27,8 @@ GOALER_USE_MOCK=false python app.py
 - `core/agent.py`: 목표 생성, 메트릭 추가, 동기 기록, 마무리까지 담당하는 비즈니스 로직.
 - `core/state_manager.py`: 대화 중간 상태를 메모리에 저장했다가 종료 시 정리합니다.
 - (계획) `core/models.py`: SQLAlchemy 모델 정의. 현재는 저장소 계층에서 직접 스키마를 참조하며, 향후 모델 클래스를 도입할 예정입니다.
-- `core/storage.py`: 현재는 인메모리에서 보스전/퀘스트/전리품 로그를 관리하며, 향후 영속 저장소 어댑터로 교체할 수 있도록 설계되었습니다.
+- `core/coach.py`: COACH_TONE_GUIDE에 기반한 응답 템플릿 로직을 담당합니다.
+- `core/storage.py`: 현재는 SQLAlchemy 기반으로 보스전/퀘스트/전리품 로그를 관리하며, 설정된 DB URL에 따라 인메모리/파일형 SQLite를 선택합니다.
 - `tests/test_core.py`, `tests/test_e2e_conversation.py`: 단위 테스트와 통합 테스트로 로직이 예상대로 움직이는지 검증합니다.
 
 ## 테스트

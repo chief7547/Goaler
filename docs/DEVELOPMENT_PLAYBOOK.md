@@ -151,7 +151,7 @@
    - 시간대(아침/점심/저녁), 전리품 유형, 에너지 상태 별 조건 반영  
    - Boss stage 상황(`READY_FOR_BOSS`, `NEEDS_POTION`)에 따른 대사 변화 구현
 2. **응답 템플릿 정비**  
-   - `docs/RESPONSE_TEMPLATES.md`에 축하/감정 공감/회복 문구를 정리하고, LLM 호출 전 템플릿을 우선 탐색하도록 구현  
+   - `docs/RESPONSE_TEMPLATES.md`에 축하/감정 공감/회복 문구를 정리하고, LLM 호출 전 템플릿을 우선 탐색하도록 구현 (`core/coach.py`)  
    - 동일 템플릿 반복을 방지하기 위해 최근 사용 목록 캐시
 3. **샘플 대화 작성**  
    - 각 성향(`challenge_appetite`)별 트랜스크립트 생성  
@@ -164,10 +164,10 @@
 - 리뷰어(또는 본인) 확인 코멘트 기록
 
 ### Artifacts
-- 샘플 대화 로그 (docs/ 또는 PR 첨부)
+- 샘플 대화 로그 (docs/ 또는 PR 첨부) → `tests/test_coach.py` 참고
 
 ### Hand-off Checklist
-- [ ] 톤 가이드와 실제 응답이 일치하는지 확인
+- [x] 톤 가이드와 실제 응답이 일치하는지 확인 (CoachResponder + compose_coach_reply)
 - [ ] 향후 튜닝 포인트(To-do) 목록 업데이트
 
 ---

@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from textwrap import dedent
 from typing import Any, Iterable
 
+from .coach import CoachResponder, ToneContext
 from .storage import SQLAlchemyStorage, create_session
 
 from .state_manager import StateManager
@@ -93,9 +94,15 @@ SYSTEM_PROMPT = dedent(
 class GoalSettingAgent:
     """Manage the conversation state while responding to tool calls."""
 
-    def __init__(self, *, storage: SQLAlchemyStorage | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        storage: SQLAlchemyStorage | None = None,
+        coach_responder: CoachResponder | None = None,
+    ) -> None:
         self.state_manager = StateManager()
         self.storage = storage or SQLAlchemyStorage(create_session())
+        self.coach_responder = coach_responder or CoachResponder()
 
     def create_goal(self, conversation_id: str, title: str) -> dict | None:
         """Initialise a new goal in the state manager."""
@@ -109,9 +116,11 @@ class GoalSettingAgent:
             "onboarding_stage": STAGE_0,
             "feature_flags": _default_feature_flags(),
             "boss_stage_ids": [],
+            "boss_stage_titles": {},
             "weekly_plan": {},
             "current_variations": [],
             "accepted_quests": [],
+            "theme_preference": "GAME",
         }
         self.state_manager.new_conversation(conversation_id, initial_state)
         return self.state_manager.get_state(conversation_id)
@@ -189,6 +198,7 @@ class GoalSettingAgent:
 
         current_state = self.state_manager.get_state(conversation_id) or {}
         existing = current_state.setdefault("boss_stage_ids", [])
+        titles = current_state.setdefault("boss_stage_titles", {})
 
         goal_id = current_state.get("goal_id", goal_id)
         created: list[dict] = []
@@ -200,7 +210,9 @@ class GoalSettingAgent:
             stage_dict = self.storage.create_boss_stage(goal_id, payload)
             created.append(stage_dict)
 
-        existing.extend(stage_dict["boss_id"] for stage_dict in created)
+        for stage_dict in created:
+            existing.append(stage_dict["boss_id"])
+            titles[stage_dict["boss_id"]] = stage_dict["title"]
         self.state_manager.update_state(conversation_id, current_state)
         return {"status": "ok", "boss_stages": created}
 
@@ -273,6 +285,12 @@ class GoalSettingAgent:
         log = self.storage.log_quest_event(payload)
         current_state = self.state_manager.get_state(conversation_id) or {}
         current_state.setdefault("quest_logs", []).append(log["log_id"])
+        if payload.get("energy_status"):
+            current_state["last_energy_status"] = payload["energy_status"]
+        if payload.get("loot_type"):
+            current_state["last_loot_type"] = payload["loot_type"]
+        if payload.get("mood_note"):
+            current_state["last_loot_title"] = payload["mood_note"]
         self.state_manager.update_state(conversation_id, current_state)
         return {
             "status": "ok",
@@ -309,3 +327,42 @@ class GoalSettingAgent:
             "status": "ok",
             "variations": variations,
         }
+
+    # ------------------------------------------------------------------
+    # Coach persona utilities
+    # ------------------------------------------------------------------
+
+    def compose_coach_reply(
+        self,
+        conversation_id: str,
+        *,
+        time_of_day: str | None = None,
+        boss_name: str | None = None,
+        now: datetime | None = None,
+    ) -> str:
+        state = self.state_manager.get_state(conversation_id) or {}
+        goal_id = state.get("goal_id")
+
+        if boss_name is None and goal_id:
+            titles = state.get("boss_stage_titles", {})
+            ordered_ids = state.get("boss_stage_ids", [])
+            if ordered_ids:
+                boss_name = titles.get(ordered_ids[0])
+            if boss_name is None:
+                stages = self.storage.list_boss_stages(goal_id)
+                if stages:
+                    boss_name = stages[0]["title"]
+
+        context = ToneContext(
+            challenge_appetite=state.get("challenge_appetite", "MEDIUM"),
+            energy_status=state.get("last_energy_status"),
+            loot_type=state.get("last_loot_type"),
+            boss_name=boss_name,
+            stage_label=state.get("onboarding_stage"),
+            theme_preference=state.get("theme_preference", "GAME"),
+            time_of_day=time_of_day,
+            loot_title=state.get("last_loot_title"),
+            next_progress=state.get("next_progress"),
+        )
+
+        return self.coach_responder.generate(context, now=now)
