@@ -168,7 +168,7 @@
 
 ### Hand-off Checklist
 - [x] 톤 가이드와 실제 응답이 일치하는지 확인 (CoachResponder + compose_coach_reply)
-- [ ] 향후 튜닝 포인트(To-do) 목록 업데이트
+- [x] 향후 튜닝 포인트(To-do) 목록 업데이트 (`docs/COACH_TUNING_BACKLOG.md`)
 
 ---
 
