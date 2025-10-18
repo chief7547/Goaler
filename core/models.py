@@ -107,4 +107,19 @@ class QuestLog(Base):
     quest: Mapped[Quest] = relationship("Quest", back_populates="logs")
 
 
-__all__ = ["Base", "Goal", "BossStage", "Quest", "QuestLog"]
+class UserPreference(Base):
+    __tablename__ = "user_preferences"
+
+    user_id: Mapped[str] = mapped_column(String, primary_key=True)
+    challenge_appetite: Mapped[str] = mapped_column(String, default="MEDIUM")
+    theme_preference: Mapped[str] = mapped_column(String, default="GAME")
+
+
+__all__ = [
+    "Base",
+    "Goal",
+    "BossStage",
+    "Quest",
+    "QuestLog",
+    "UserPreference",
+]

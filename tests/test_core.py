@@ -5,6 +5,7 @@ import pytest
 
 from core.agent import GoalSettingAgent
 from core.coach import CoachResponder
+from core.models import UserPreference
 
 
 class FixedRandom(random.Random):
@@ -29,11 +30,11 @@ def test_create_goal_initialises_state(agent) -> None:
     assert "metrics" in current_state
     assert isinstance(current_state["metrics"], list)
     assert current_state["onboarding_stage"] == "STAGE_0_ONBOARDING"
-    assert current_state["feature_flags"] == {
-        "loot": False,
-        "energy": False,
-        "boss": False,
-    }
+    assert current_state["feature_flags"]["loot"] is False
+    assert current_state["feature_flags"]["energy"] is False
+    assert current_state["feature_flags"]["boss"] is False
+    assert current_state["theme_preference"] == "GAME"
+    assert current_state["user_id"] == "default_user"
 
 
 def test_add_metric_updates_state(agent) -> None:
@@ -312,3 +313,28 @@ def test_compose_coach_reply_uses_context(agent, storage) -> None:
 
     assert "체중 기록" in reply
     assert "보스전" in reply or "핵심 마일스톤" in reply
+
+
+def test_compose_coach_reply_respects_user_preferences(agent, storage):
+    session = storage.session
+    session.add(
+        UserPreference(
+            user_id="user-pro",
+            challenge_appetite="LOW",
+            theme_preference="PROFESSIONAL",
+        )
+    )
+    session.commit()
+
+    conv_id = "conv_pref"
+    agent.create_goal(conv_id, "Pref Goal", user_id="user-pro")
+    agent.define_boss_stages(
+        conv_id,
+        agent.state_manager.get_state(conv_id)["goal_id"],
+        [{"title": "시장 조사"}],
+    )
+
+    reply = agent.compose_coach_reply(conv_id, time_of_day="morning")
+
+    assert "핵심 마일스톤" in reply or "실행 계획" in reply
+    assert "천천히" in reply or "안정적으로" in reply

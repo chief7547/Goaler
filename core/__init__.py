@@ -6,4 +6,5 @@ __all__ = [
     "llm_prompt",
     "storage",
     "coach",
+    "user_preferences",
 ]

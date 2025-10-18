@@ -10,7 +10,7 @@ from typing import Iterable
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
 
-from .models import Base, BossStage, Goal, Quest, QuestLog
+from .models import Base, BossStage, Goal, Quest, QuestLog, UserPreference
 
 
 def _tags_to_string(tags: Iterable[str] | None) -> str | None:
@@ -65,6 +65,19 @@ class SQLAlchemyStorage:
             "title": goal.title,
             "goal_type": goal.goal_type,
             "motivation": goal.motivation,
+        }
+
+    # ------------------------------------------------------------------
+    # User preferences
+    # ------------------------------------------------------------------
+    def get_user_preferences(self, user_id: str) -> dict | None:
+        record = self.session.get(UserPreference, user_id)
+        if not record:
+            return None
+        return {
+            "user_id": record.user_id,
+            "challenge_appetite": record.challenge_appetite,
+            "theme_preference": record.theme_preference,
         }
 
     # ------------------------------------------------------------------

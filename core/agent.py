@@ -8,6 +8,7 @@ from typing import Any, Iterable
 
 from .coach import CoachResponder, ToneContext
 from .storage import SQLAlchemyStorage, create_session
+from .user_preferences import ContextLoader
 
 from .state_manager import StateManager
 
@@ -103,12 +104,22 @@ class GoalSettingAgent:
         self.state_manager = StateManager()
         self.storage = storage or SQLAlchemyStorage(create_session())
         self.coach_responder = coach_responder or CoachResponder()
+        self.context_loader = ContextLoader(self.storage)
 
-    def create_goal(self, conversation_id: str, title: str) -> dict | None:
+    def create_goal(
+        self,
+        conversation_id: str,
+        title: str,
+        *,
+        user_id: str | None = None,
+    ) -> dict | None:
         """Initialise a new goal in the state manager."""
 
+        user_id = user_id or "default_user"
+        prefs = self.context_loader.get_user_preferences(user_id)
         goal_record = self.storage.create_goal({"title": title})
         initial_state: dict[str, Any] = {
+            "user_id": user_id,
             "goal_id": goal_record["goal_id"],
             "goal_title": goal_record["title"],
             "metrics": [],
@@ -120,7 +131,8 @@ class GoalSettingAgent:
             "weekly_plan": {},
             "current_variations": [],
             "accepted_quests": [],
-            "theme_preference": "GAME",
+            "theme_preference": prefs.theme_preference,
+            "challenge_appetite": prefs.challenge_appetite,
         }
         self.state_manager.new_conversation(conversation_id, initial_state)
         return self.state_manager.get_state(conversation_id)
@@ -342,6 +354,11 @@ class GoalSettingAgent:
     ) -> str:
         state = self.state_manager.get_state(conversation_id) or {}
         goal_id = state.get("goal_id")
+        user_id = state.get("user_id", "default_user")
+        prefs = self.context_loader.get_user_preferences(user_id)
+
+        challenge_appetite = state.get("challenge_appetite") or prefs.challenge_appetite
+        theme_preference = state.get("theme_preference") or prefs.theme_preference
 
         if boss_name is None and goal_id:
             titles = state.get("boss_stage_titles", {})
@@ -354,15 +371,18 @@ class GoalSettingAgent:
                     boss_name = stages[0]["title"]
 
         context = ToneContext(
-            challenge_appetite=state.get("challenge_appetite", "MEDIUM"),
+            challenge_appetite=challenge_appetite,
             energy_status=state.get("last_energy_status"),
             loot_type=state.get("last_loot_type"),
             boss_name=boss_name,
             stage_label=state.get("onboarding_stage"),
-            theme_preference=state.get("theme_preference", "GAME"),
+            theme_preference=theme_preference,
             time_of_day=time_of_day,
             loot_title=state.get("last_loot_title"),
             next_progress=state.get("next_progress"),
         )
 
-        return self.coach_responder.generate(context, now=now)
+        return self.coach_responder.generate(
+            context,
+            now=now or datetime.now(timezone.utc),
+        )
