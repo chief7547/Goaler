@@ -233,7 +233,11 @@
    - 경고 조건(Alert) 정의 (`docs/RISK_REGISTER.md` 기반)
 5. **보안/백업**  
    - Secrets Vault, DB 백업 자동화, 개인정보 보존 정책 수립
-
+6. **리포트 워커 자동화**  
+   - APScheduler 기반 `tools/report_worker.py` 스케줄러로 월간/주간 리포트, 알림을 자동 실행
+   - 실행 내역 및 성공/실패 로그를 중앙화하고 재시도 전략 정의
+7. **리포트 요약 프롬프트 고도화**  
+   - `core/coach.py`에 리포트 전용 SYSTEM_PROMPT를 정의하고 LLM 호출 시 사용
 ### Quality Gates
 - 실제 사용자 대상으로 베타/도그푸드 테스트 실시(기록 남김)
 - 운영 문서(SOP) 작성: 장애 대응, 백업/복원 절차 기록

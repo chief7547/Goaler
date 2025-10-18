@@ -8,6 +8,13 @@ from datetime import datetime
 from typing import Callable, Dict, List, Optional
 
 
+REPORT_SUMMARY_PROMPT = (
+    "당신은 데이터 분석가이자 따뜻한 스토리텔러입니다. 아래는 한 사용자의 전리품 요약 데이터입니다.\n"
+    "성공, 깨달음, 감정의 흐름을 3~5문장으로 묶어 감동적인 성장 서사를 작성해주세요.\n"
+    "긍정적 측면을 강조하고 다음 도전을 응원하는 문장을 포함하세요."
+)
+
+
 @dataclass
 class ToneContext:
     """Snapshot of data that influences the coach response tone."""
@@ -169,4 +176,4 @@ class CoachResponder:
         return message
 
 
-__all__ = ["CoachResponder", "ToneContext"]
+__all__ = ["CoachResponder", "ToneContext", "REPORT_SUMMARY_PROMPT"]
