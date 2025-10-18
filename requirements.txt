@@ -4,3 +4,4 @@ flask
 pyyaml
 python-dotenv
 openai
+SQLAlchemy

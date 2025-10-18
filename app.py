@@ -140,7 +140,9 @@ def _run_openai_conversation():
     try:
         client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
     except Exception as exc:
-        print(f"오류: OpenAI 클라이언트 초기화에 실패했습니다. OPENAI_API_KEY를 확인하세요. 에러: {exc}")
+        print(
+            f"오류: OpenAI 클라이언트 초기화에 실패했습니다. OPENAI_API_KEY를 확인하세요. 에러: {exc}"
+        )
         return
 
     agent = GoalSettingAgent()
@@ -149,6 +151,12 @@ def _run_openai_conversation():
         "add_metric": agent.add_metric,
         "set_motivation": agent.set_motivation,
         "finalize_goal": agent.finalize_goal,
+        "define_boss_stages": agent.define_boss_stages,
+        "propose_weekly_plan": agent.propose_weekly_plan,
+        "propose_daily_tasks": agent.propose_daily_tasks,
+        "choose_quest": agent.choose_quest,
+        "propose_quests": agent.propose_quests,
+        "log_quest_outcome": agent.log_quest_outcome,
     }
 
     model_name = DEFAULT_CHAT_MODEL
@@ -189,7 +197,12 @@ def _run_openai_conversation():
                                 "unit": {"type": "string"},
                                 "initial_value": {"type": "number"},
                             },
-                            "required": ["metric_name", "metric_type", "target_value", "unit"],
+                            "required": [
+                                "metric_name",
+                                "metric_type",
+                                "target_value",
+                                "unit",
+                            ],
                         },
                         "metric_name": {"type": "string"},
                         "metric_type": {"type": "string"},
@@ -198,6 +211,111 @@ def _run_openai_conversation():
                         "initial_value": {"type": "number"},
                     },
                     "required": [],
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "define_boss_stages",
+                "description": "Persists boss stage candidates for the goal.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "boss_candidates": {
+                            "type": "array",
+                            "items": {"type": "object"},
+                        },
+                        "goal_id": {"type": "string"},
+                    },
+                    "required": ["boss_candidates", "goal_id"],
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "propose_weekly_plan",
+                "description": "Registers weekly plan steps for a boss stage.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "goal_id": {"type": "string"},
+                        "boss_id": {"type": "string"},
+                        "weekly_plan": {"type": "array", "items": {"type": "object"}},
+                    },
+                    "required": ["goal_id", "boss_id", "weekly_plan"],
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "propose_daily_tasks",
+                "description": "Suggests daily tasks for the selected weekly step.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "goal_id": {"type": "string"},
+                        "weekly_step": {"type": "object"},
+                        "daily_tasks": {"type": "array", "items": {"type": "object"}},
+                    },
+                    "required": ["goal_id", "weekly_step", "daily_tasks"],
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "propose_quests",
+                "description": "Offers quest variations for user choice.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "goal_id": {"type": "string"},
+                        "candidate_pool": {
+                            "type": "array",
+                            "items": {"type": "object"},
+                        },
+                    },
+                    "required": ["goal_id", "candidate_pool"],
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "choose_quest",
+                "description": "Locks in a quest variation for execution.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "goal_id": {"type": "string"},
+                        "quest_choice": {"type": "object"},
+                    },
+                    "required": ["goal_id", "quest_choice"],
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "log_quest_outcome",
+                "description": "Logs the result of a quest execution.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "goal_id": {"type": "string"},
+                        "quest_id": {"type": "string"},
+                        "occurred_at": {"type": "string"},
+                        "outcome": {"type": "string"},
+                        "energy_status": {"type": "string"},
+                        "loot_type": {"type": "string"},
+                        "perceived_difficulty": {"type": "string"},
+                        "mood_note": {"type": "string"},
+                        "llm_variation_seed": {"type": "string"},
+                    },
+                    "required": ["goal_id", "quest_id", "occurred_at", "outcome"],
                 },
             },
         },

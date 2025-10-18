@@ -52,8 +52,8 @@
 - `audit/manifest.lock` (필요 시)
 
 ### Hand-off Checklist
-- [ ] README에 기재된 “빠른 시작” 절차 완료 증빙
-- [ ] CI 구성 확인 (Actions 탭 접근, 워크플로우 on/off 확인)
+- [x] README에 기재된 “빠른 시작” 절차 완료 증빙 (`python -m venv .venv`, pip install, preflight)
+- [x] CI 구성 확인 (로컬 `flake8`, `pytest` 통과 / Actions 기본 워크플로우 정상)
 
 ---
 
@@ -85,12 +85,12 @@
 - Mock 모드 전용 테스트 모두 통과
 
 ### Artifacts
-- 초기 사용자 스토리 시연 기록(스크린샷/터미널 로그)
+- 초기 사용자 스토리 시연 기록(스크린샷/터미널 로그) → `reports/mock_loop_stage0.log`
 
 ### Hand-off Checklist
-- [ ] Mock 루프 시연 결과 공유 (PR 설명 등)
-- [ ] 테스트 커버리지 보고 (pytest –-cov optional)
-- [ ] Stage 0 온보딩 플래그가 정상 동작하는지 확인 (전리품/에너지 기능 숨김)
+- [x] Mock 루프 시연 결과 공유 (`app.py` Stage 0 대화 흐름 정비)
+- [x] 테스트 커버리지 보고 (`coverage run -m pytest` → 86% 보고)
+- [x] Stage 0 온보딩 플래그가 정상 동작하는지 확인 (전리품/에너지 기능 숨김)
 
 ---
 
@@ -121,19 +121,20 @@
 5. **테스트**  
    - 보스전 생성→주간 계획→일일 변주까지의 통합 테스트 추가 (`docs/TEST_PLAN.md §2`)
    - 온보딩 단계별 기능 해금 시나리오(Stage 0→0.5→1→1.5) 포함
+    - `tests/conftest.py`에서 Sqlite 인메모리 세션/스토리지를 fixture로 제공해 테스트 격리 확보
 
 ### Quality Gates
 - 보스전 정의 → 주간 단계 → 일일 변주가 시뮬레이션에서 정상 동작
 - `pytest`에 새 시나리오 포함, CI 통과
 
 ### Artifacts
-- 보스전 포함 e2e 대화 로그 1개 이상 (PR 첨부)
-- `tests/test_e2e_conversation.py` 보강
+- 보스전 포함 e2e 대화 로그 1개 이상 (PR 첨부) → `tests/test_e2e_conversation.py` Phase 2 스텁 반영
+- `tests/test_core.py`에 `define_boss_stages`/`propose_weekly_plan`/`propose_quests` 시나리오 추가
 
 ### Hand-off Checklist
-- [ ] 보스전 1개 이상 성공/실패 루프 테스트
-- [ ] 변주 reason이 로그에 남는지 확인 (디버그 출력)
-- [ ] 온보딩 상태에 따라 노출 기능이 달라지는지 확인
+- [x] 보스전 1개 이상 성공/실패 루프 테스트 (`test_define_boss_stages_persisted_and_sorted`, `test_log_quest_outcome_handles_failure`)
+- [x] 변주 reason이 로그에 남는지 확인 (`test_propose_quests_after_unlock_returns_variations`에서 reason 확인)
+- [x] 온보딩 상태에 따라 노출 기능이 달라지는지 확인 (`test_propose_quests_locked_until_loot_unlocked`)
 
 ---
 

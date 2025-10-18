@@ -42,8 +42,12 @@ class TestE2EConversation(unittest.TestCase):
             for line in iter(pipe.readline, ""):
                 output_list.append(line)
 
-        stdout_thread = threading.Thread(target=read_pipe, args=(process.stdout, stdout_lines))
-        stderr_thread = threading.Thread(target=read_pipe, args=(process.stderr, stderr_lines))
+        stdout_thread = threading.Thread(
+            target=read_pipe, args=(process.stdout, stdout_lines)
+        )
+        stderr_thread = threading.Thread(
+            target=read_pipe, args=(process.stderr, stderr_lines)
+        )
         stdout_thread.start()
         stderr_thread.start()
 
@@ -150,6 +154,56 @@ def test_tool_call_driven_goal_flow(monkeypatch, capsys):
             self.calls.append(("finalize_goal", conversation_id, final_snapshot))
             return True
 
+        # Phase 2 stubs -------------------------------------------------
+        def define_boss_stages(
+            self,
+            conversation_id: str,
+            goal_id: str,
+            boss_candidates: list[dict],
+        ):
+            self.calls.append(
+                ("define_boss_stages", conversation_id, goal_id, boss_candidates)
+            )
+            return {"status": "ok", "boss_stages": []}
+
+        def propose_weekly_plan(
+            self,
+            conversation_id: str,
+            goal_id: str,
+            boss_id: str,
+            weekly_plan: list[dict],
+        ):
+            self.calls.append(
+                ("propose_weekly_plan", conversation_id, boss_id, weekly_plan)
+            )
+            return {"status": "ok", "weekly_plan": weekly_plan}
+
+        def propose_daily_tasks(
+            self,
+            conversation_id: str,
+            goal_id: str,
+            weekly_step: dict,
+            daily_tasks: list[dict],
+        ):
+            self.calls.append(
+                ("propose_daily_tasks", conversation_id, weekly_step, daily_tasks)
+            )
+            return {"status": "ok", "daily_tasks": daily_tasks}
+
+        def choose_quest(self, conversation_id: str, goal_id: str, quest_choice: dict):
+            self.calls.append(("choose_quest", conversation_id, quest_choice))
+            return {"status": "ok", "quest": quest_choice}
+
+        def propose_quests(
+            self, conversation_id: str, goal_id: str, candidate_pool: list[dict]
+        ):
+            self.calls.append(("propose_quests", conversation_id, candidate_pool))
+            return {"status": "ok", "variations": candidate_pool}
+
+        def log_quest_outcome(self, conversation_id: str, payload: dict):
+            self.calls.append(("log_quest_outcome", conversation_id, payload))
+            return {"status": "ok", "log": payload}
+
     monkeypatch.setattr(app, "GoalSettingAgent", FakeGoalSettingAgent)
 
     class FakeOpenAI:
@@ -165,7 +219,9 @@ def test_tool_call_driven_goal_flow(monkeypatch, capsys):
                 _FakeMessage(
                     content=None,
                     tool_calls=[
-                        _make_tool_call("create_goal", {"title": "체중 감량 목표"}, "call_create"),
+                        _make_tool_call(
+                            "create_goal", {"title": "체중 감량 목표"}, "call_create"
+                        ),
                     ],
                 ),
                 _FakeMessage(content="'체중 감량 목표'를 생성했어요."),

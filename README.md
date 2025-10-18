@@ -27,7 +27,7 @@ GOALER_USE_MOCK=false python app.py
 - `core/agent.py`: 목표 생성, 메트릭 추가, 동기 기록, 마무리까지 담당하는 비즈니스 로직.
 - `core/state_manager.py`: 대화 중간 상태를 메모리에 저장했다가 종료 시 정리합니다.
 - (계획) `core/models.py`: SQLAlchemy 모델 정의. 현재는 저장소 계층에서 직접 스키마를 참조하며, 향후 모델 클래스를 도입할 예정입니다.
-- `core/storage.py`: DB 세션을 관리하고 CRUD 메서드를 제공하는 저장소 어댑터입니다.
+- `core/storage.py`: 현재는 인메모리에서 보스전/퀘스트/전리품 로그를 관리하며, 향후 영속 저장소 어댑터로 교체할 수 있도록 설계되었습니다.
 - `tests/test_core.py`, `tests/test_e2e_conversation.py`: 단위 테스트와 통합 테스트로 로직이 예상대로 움직이는지 검증합니다.
 
 ## 테스트
@@ -38,6 +38,7 @@ PYTHONPATH=. pytest
 ## 데이터 저장 전략
 - **MVP**: SQLite를 기본 저장소로 사용합니다. 별도 서버가 필요 없고 파일 하나로 목표·메트릭·대화 기록(선택)을 영구 보관할 수 있습니다.
 - **확장 단계**: PostgreSQL 등 서버형 DB로 전환할 수 있도록 구조를 분리해 두었습니다. 환경 변수로 연결 문자열만 바꾸면 마이그레이션이 가능합니다.
+- 기본 제공 세션 팩토리는 `sqlite:///data/goaler.db` 파일을 자동으로 생성하며, 테스트에서는 `sqlite:///:memory:` 기반의 Pytest fixture(`tests/conftest.py`)로 격리된 세션을 사용합니다.
 
 저장 예상 테이블 및 경로 정책
 - 기본 DB 파일: `data/goaler.db` (환경 변수 `GOALER_DATABASE_URL`로 경로/엔진 재정의 가능)
