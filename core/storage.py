@@ -47,6 +47,7 @@ class SQLAlchemyStorage:
             title=payload["title"],
             goal_type=payload.get("goal_type", "ONE_TIME"),
             motivation=payload.get("motivation"),
+            user_id=payload.get("user_id", "default_user"),
         )
         self.session.add(goal)
         self.session.commit()
@@ -62,6 +63,7 @@ class SQLAlchemyStorage:
     def _goal_to_dict(self, goal: Goal) -> dict:
         return {
             "goal_id": goal.goal_id,
+            "user_id": goal.user_id,
             "title": goal.title,
             "goal_type": goal.goal_type,
             "motivation": goal.motivation,

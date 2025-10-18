@@ -21,6 +21,7 @@ class Goal(Base):
     __tablename__ = "goals"
 
     goal_id: Mapped[str] = mapped_column(String, primary_key=True, default=_uuid)
+    user_id: Mapped[str] = mapped_column(String, default="default_user")
     title: Mapped[str] = mapped_column(String, nullable=False)
     goal_type: Mapped[str] = mapped_column(String, default="ONE_TIME")
     motivation: Mapped[str | None] = mapped_column(Text, nullable=True)

@@ -50,13 +50,15 @@ def test_coach_responder_hybrid_fallback():
     called = {}
 
     def llm_callback(ctx):
-        called['used'] = True
-        return 'LLM 응답: 오늘은 어떤 전리품을 남겨볼까요?'
+        called["used"] = True
+        return "LLM 응답: 오늘은 어떤 전리품을 남겨볼까요?"
 
     responder = CoachResponder(rng=FixedRandom(), llm_callback=llm_callback)
     ctx = ToneContext()
 
-    message = responder.generate(ctx, now=datetime(2025, 1, 1, 9, 0, tzinfo=timezone.utc))
+    message = responder.generate(
+        ctx, now=datetime(2025, 1, 1, 9, 0, tzinfo=timezone.utc)
+    )
 
-    assert called.get('used') is True
-    assert '전리품' in message
+    assert called.get("used") is True
+    assert "전리품" in message

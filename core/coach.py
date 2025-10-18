@@ -155,12 +155,15 @@ class CoachResponder:
             )
         message = " ".join(section for section in sections if section)
 
-        if len(sections) <= 2 and not loot_msg and not recovery_msg and not ctx.boss_name:
+        if (
+            len(sections) <= 2
+            and not loot_msg
+            and not recovery_msg
+            and not ctx.boss_name
+        ):
             if self._llm_callback:
                 return self._llm_callback(ctx)
-            generic = (
-                f"{ack} {header} 오늘은 가볍게 기록부터 남겨볼까요?"
-            )
+            generic = f"{ack} {header} 오늘은 가볍게 기록부터 남겨볼까요?"
             return generic.strip()
 
         return message
