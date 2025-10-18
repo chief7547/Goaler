@@ -1,3 +1,5 @@
+from collections.abc import Generator
+
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
@@ -7,7 +9,7 @@ from core.storage import SQLAlchemyStorage
 
 
 @pytest.fixture(scope="function")
-def session() -> Session:
+def session() -> Generator[Session, None, None]:
     engine = create_engine("sqlite:///:memory:", future=True)
     Base.metadata.create_all(engine)
 

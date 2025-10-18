@@ -193,7 +193,7 @@ class SQLAlchemyStorage:
 
 
 def create_session_factory(database_url: str | None = None) -> sessionmaker[Session]:
-    url = database_url or os.getenv("GOALER_DATABASE_URL", "sqlite:///data/goaler.db")
+    url = database_url or os.getenv("GOALER_DATABASE_URL") or "sqlite:///data/goaler.db"
     if url.startswith("sqlite:///") and not url.startswith("sqlite:///:memory:"):
         db_path = url.replace("sqlite:///", "", 1)
         directory = os.path.dirname(db_path)
