@@ -4,13 +4,22 @@ from __future__ import annotations
 
 import os
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Iterable
 
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
 
-from .models import Base, BossStage, Goal, Quest, QuestLog, UserPreference
+from .models import (
+    Base,
+    BossStage,
+    Goal,
+    PlayerProgress,
+    Quest,
+    QuestLog,
+    Reminder,
+    UserPreference,
+)
 
 
 def _tags_to_string(tags: Iterable[str] | None) -> str | None:
@@ -80,6 +89,97 @@ class SQLAlchemyStorage:
             "user_id": record.user_id,
             "challenge_appetite": record.challenge_appetite,
             "theme_preference": record.theme_preference,
+            "onboarding_stage": record.onboarding_stage,
+        }
+
+    def save_user_preferences(self, payload: dict) -> dict:
+        user_id = payload["user_id"]
+        record = self.session.get(UserPreference, user_id)
+        timestamp = datetime.now(timezone.utc)
+        if record is None:
+            record = UserPreference(
+                user_id=user_id,
+                challenge_appetite=payload.get("challenge_appetite", "MEDIUM"),
+                theme_preference=payload.get("theme_preference", "GAME"),
+                onboarding_stage=payload.get("onboarding_stage", "STAGE_0_ONBOARDING"),
+                updated_at=timestamp,
+            )
+            self.session.add(record)
+        else:
+            if "challenge_appetite" in payload:
+                record.challenge_appetite = payload["challenge_appetite"]
+            if "theme_preference" in payload:
+                record.theme_preference = payload["theme_preference"]
+            if "onboarding_stage" in payload:
+                record.onboarding_stage = payload["onboarding_stage"]
+            record.updated_at = timestamp
+        self.session.commit()
+        self.session.refresh(record)
+        return {
+            "user_id": record.user_id,
+            "challenge_appetite": record.challenge_appetite,
+            "theme_preference": record.theme_preference,
+            "onboarding_stage": record.onboarding_stage,
+        }
+
+    # ------------------------------------------------------------------
+    # Player progress
+    # ------------------------------------------------------------------
+    def get_player_progress(self, user_id: str) -> dict | None:
+        record = self.session.get(PlayerProgress, user_id)
+        if not record:
+            return None
+        return self._player_progress_to_dict(record)
+
+    def upsert_player_progress(self, payload: dict) -> dict:
+        user_id = payload["user_id"]
+        record = self.session.get(PlayerProgress, user_id)
+        timestamp = datetime.now(timezone.utc)
+        if record is None:
+            record = PlayerProgress(
+                user_id=user_id,
+                focus_goal_id=payload.get("focus_goal_id"),
+                stage_label=payload.get("stage_label", "STAGE_0_ONBOARDING"),
+                level=payload.get("level", 1),
+                experience_points=payload.get("experience_points", 0),
+                streak_weeks=payload.get("streak_weeks", 0),
+                last_reflection_at=payload.get("last_reflection_at"),
+                updated_at=timestamp,
+            )
+            self.session.add(record)
+        else:
+            for field in (
+                "focus_goal_id",
+                "stage_label",
+                "level",
+                "experience_points",
+                "streak_weeks",
+                "last_reflection_at",
+            ):
+                if field in payload:
+                    setattr(record, field, payload[field])
+            record.updated_at = timestamp
+        self.session.commit()
+        self.session.refresh(record)
+        return self._player_progress_to_dict(record)
+
+    def update_player_progress(self, user_id: str, payload: dict) -> dict:
+        payload_with_id = dict(payload)
+        payload_with_id["user_id"] = user_id
+        return self.upsert_player_progress(payload_with_id)
+
+    def _player_progress_to_dict(self, record: PlayerProgress) -> dict:
+        return {
+            "user_id": record.user_id,
+            "focus_goal_id": record.focus_goal_id,
+            "stage_label": record.stage_label,
+            "level": record.level,
+            "experience_points": record.experience_points,
+            "streak_weeks": record.streak_weeks,
+            "last_reflection_at": record.last_reflection_at.isoformat()
+            if record.last_reflection_at
+            else None,
+            "updated_at": record.updated_at.isoformat(),
         }
 
     # ------------------------------------------------------------------
@@ -204,6 +304,58 @@ class SQLAlchemyStorage:
             "loot_type": log.loot_type,
             "mood_note": log.mood_note,
             "llm_variation_seed": log.llm_variation_seed,
+        }
+
+    # ------------------------------------------------------------------
+    # Reminders
+    # ------------------------------------------------------------------
+    def create_reminder(self, payload: dict) -> dict:
+        reminder = Reminder(
+            goal_id=payload["goal_id"],
+            channel=payload.get("channel", "slack"),
+            frequency=payload.get("frequency", "daily"),
+            next_run_at=payload.get("next_run_at"),
+            preferred_time=payload.get("preferred_time"),
+            active=payload.get("active", True),
+            reminder_id=payload.get("reminder_id", str(uuid.uuid4())),
+        )
+        self.session.add(reminder)
+        self.session.commit()
+        self.session.refresh(reminder)
+        return self._reminder_to_dict(reminder)
+
+    def list_reminders_due(self, now: datetime) -> list[dict]:
+        stmt = (
+            select(Reminder)
+            .where(Reminder.active.is_(True))
+            .where(Reminder.next_run_at.is_not(None))
+            .where(Reminder.next_run_at <= now)
+        )
+        reminders = self.session.scalars(stmt).all()
+        return [self._reminder_to_dict(reminder) for reminder in reminders]
+
+    def update_reminder(self, reminder_id: str, payload: dict) -> dict | None:
+        reminder = self.session.get(Reminder, reminder_id)
+        if reminder is None:
+            return None
+        for field in ("channel", "frequency", "next_run_at", "preferred_time", "active"):
+            if field in payload:
+                setattr(reminder, field, payload[field])
+        self.session.commit()
+        self.session.refresh(reminder)
+        return self._reminder_to_dict(reminder)
+
+    def _reminder_to_dict(self, reminder: Reminder) -> dict:
+        return {
+            "reminder_id": reminder.reminder_id,
+            "goal_id": reminder.goal_id,
+            "channel": reminder.channel,
+            "frequency": reminder.frequency,
+            "next_run_at": reminder.next_run_at.isoformat()
+            if reminder.next_run_at
+            else None,
+            "preferred_time": reminder.preferred_time,
+            "active": reminder.active,
         }
 
 

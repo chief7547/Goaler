@@ -13,6 +13,7 @@
 | `STAGE_3_SUMMIT` | Stage 3 – Summit Breakthrough | 장기 목표 마무리 및 확장 기능 |
 
 > `player_progress.stage_label`과 `user_preferences.onboarding_stage`에는 위 코드 값을 저장한다. UI/리포트에서는 본 문서의 한글 명칭을 사용한다.
+> GoalSettingAgent의 `set_onboarding_stage` 도구는 Stage 해금 시 두 테이블을 동시에 갱신하고, 대화 상태의 기능 노출 플래그를 자동으로 업데이트한다.
 
 ## Stage 0 – Spark Awakening (Day 0~3)
 - **노출 요소:** 목표 생성, 일일 퀘스트 완료, 칭찬 메시지

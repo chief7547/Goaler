@@ -223,14 +223,14 @@
    - `.env`에 API 키 설정, `GOALER_USE_MOCK=false` 실행  
    - OpenAI 호출/에러 처리 확인, 비용 로그 점검
 2. **비동기 워커 도입**  
-   - APScheduler/Celery로 요약/알림 처리  
-   - 워커 헬스체크, 재시도 로직 구현
+   - APScheduler로 요약/알림 처리 (`tools/report_worker.py`)  
+   - 워커 헬스체크, 재시도 로직 구현 → `logs/report_worker.log` 확인 루틴 정리
 3. **알림 채널 확장**  
-   - Email/SMS 템플릿, 사용자 설정 UI 준비  
-   - 알림 실패 시 재시도 및 관리자 알림
+   - Email/SMS 템플릿, 사용자 설정 UI 준비 (`docs/ALERT_TEMPLATES.md`)  
+   - 알림 실패 시 재시도 및 관리자 알림 경로 정의
 4. **모니터링/경보 설정**  
    - 로그/지표/토큰 비용 대시보드 설정  
-   - 경고 조건(Alert) 정의 (`docs/RISK_REGISTER.md` 기반)
+   - 경고 조건(Alert) 정의 (`docs/RISK_REGISTER.md`, `docs/OPERATIONS_SOP.md` 기반)
 5. **보안/백업**  
    - Secrets Vault, DB 백업 자동화, 개인정보 보존 정책 수립
 6. **리포트 워커 자동화**  
@@ -243,11 +243,33 @@
 - 운영 문서(SOP) 작성: 장애 대응, 백업/복원 절차 기록
 
 ### Artifacts
-- 운영 플레이북, 알림 채널 설정 문서, 보안/백업 정책 문서
+- `docs/OPERATIONS_SOP.md` (운영 플레이북)
+- `docs/ALERT_TEMPLATES.md` (알림 채널별 템플릿)
+- 보안/백업 정책 문서
 
 ### Hand-off Checklist
 - [ ] 운영팀/협력자와 런칭 리허설
 - [ ] Go/No-Go 체크리스트 완료
+- [ ] Phase 6 준비 계획 확정 (PostgreSQL 전환, Alembic 도입, LLM 비용 제한 정책)
+
+---
+
+## Phase 6 — Operational Hardening (예정)
+**목표:** 초기 런칭 후 안정화와 확장성 확보.
+
+### 주요 항목 (초안)
+1. **DB 인프라 전환**  
+   - SQLite → PostgreSQL 전환, CI/CD 환경 포함  
+   - 세션 풀/재시도 정책 재설계, `docs/OPERATIONS_SOP.md §7`과 연동
+2. **스키마 마이그레이션 체계화**  
+   - Alembic 도입 (`alembic.ini`, `migrations/`)  
+   - `alembic revision --autogenerate` / `alembic upgrade head` 워크플로우 문서화
+3. **LLM 비용 통제 및 레이트리밋**  
+   - Redis 등으로 사용자/전역 토큰 사용량 추적 및 임계치 차단  
+   - 초과 시 안내 메시지 반환 + 관리자 알림
+4. **장기 워커 확장**  
+   - Celery 등 분산 워커 도입 여부 검토  
+   - Sentry/Prometheus 등 모니터링 도입
 
 ---
 

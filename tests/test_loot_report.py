@@ -64,6 +64,7 @@ def test_gather_summary_produces_counts(tmp_path):
     content = render_report(summary)
     assert "시장 피드백 정리" in content
     assert "시장 조사" in content
+    assert "## 6. 성장 서사" in content
 
     output = write_report(content, summary, tmp_path)
     assert output.exists()

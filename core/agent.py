@@ -4,25 +4,33 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from textwrap import dedent
-from typing import Any, Iterable
+from typing import Any, Iterable, cast
 
 from .coach import CoachResponder, ToneContext
 from .storage import SQLAlchemyStorage, create_session
-from .user_preferences import ContextLoader
+from .user_preferences import ContextLoader, UserPreferences
 
 from .state_manager import StateManager
 
 STAGE_0 = "STAGE_0_ONBOARDING"
+STAGE_LOOT = "STAGE_0_5_LOOT"
+STAGE_ENERGY = "STAGE_1_ENERGY"
+STAGE_BOSS_PREVIEW = "STAGE_1_5_BOSS_PREVIEW"
+
+_STAGE_FEATURE_MATRIX: dict[str, dict[str, bool]] = {
+    STAGE_0: {"loot": False, "energy": False, "boss": False},
+    STAGE_LOOT: {"loot": True, "energy": False, "boss": False},
+    STAGE_ENERGY: {"loot": True, "energy": True, "boss": False},
+    STAGE_BOSS_PREVIEW: {"loot": True, "energy": True, "boss": True},
+    "STAGE_2_ASCENSION": {"loot": True, "energy": True, "boss": True},
+    "STAGE_3_SUMMIT": {"loot": True, "energy": True, "boss": True},
+}
 
 
-def _default_feature_flags() -> dict[str, bool]:
-    """Return feature exposure flags for the initial onboarding stage."""
-
-    return {
-        "loot": False,
-        "energy": False,
-        "boss": False,
-    }
+def _feature_flags_for_stage(stage: str) -> dict[str, bool]:
+    base = {"loot": False, "energy": False, "boss": False}
+    base.update(_STAGE_FEATURE_MATRIX.get(stage, {}))
+    return base
 
 
 def _coerce_metric_details(
@@ -116,16 +124,44 @@ class GoalSettingAgent:
         """Initialise a new goal in the state manager."""
 
         user_id = user_id or "default_user"
-        prefs = self.context_loader.get_user_preferences(user_id)
-        goal_record = self.storage.create_goal({"title": title})
+        prefs = self._ensure_user_preferences(user_id)
+        goal_record = self.storage.create_goal({"title": title, "user_id": user_id})
+        progress = self.storage.get_player_progress(user_id)
+        if progress and isinstance(progress.get("stage_label"), str):
+            stage_code: str = cast(str, progress["stage_label"])
+        else:
+            stage_code = prefs.onboarding_stage
+        if progress is None:
+            self.storage.upsert_player_progress(
+                {
+                    "user_id": user_id,
+                    "focus_goal_id": goal_record["goal_id"],
+                    "stage_label": stage_code,
+                }
+            )
+        else:
+            if progress.get("focus_goal_id") != goal_record["goal_id"]:
+                self.storage.update_player_progress(
+                    user_id,
+                    {"focus_goal_id": goal_record["goal_id"]},
+                )
+        self.storage.save_user_preferences(
+            {
+                "user_id": user_id,
+                "challenge_appetite": prefs.challenge_appetite,
+                "theme_preference": prefs.theme_preference,
+                "onboarding_stage": stage_code,
+            }
+        )
+
         initial_state: dict[str, Any] = {
             "user_id": user_id,
             "goal_id": goal_record["goal_id"],
             "goal_title": goal_record["title"],
             "metrics": [],
             "motivation": None,
-            "onboarding_stage": STAGE_0,
-            "feature_flags": _default_feature_flags(),
+            "onboarding_stage": stage_code,
+            "feature_flags": _feature_flags_for_stage(stage_code),
             "boss_stage_ids": [],
             "boss_stage_titles": {},
             "weekly_plan": {},
@@ -184,12 +220,12 @@ class GoalSettingAgent:
         """Expose onboarding stage and feature flags for UI/adapters."""
 
         current_state = self.state_manager.get_state(conversation_id) or {}
-        stage = current_state.get("onboarding_stage", STAGE_0)
-        feature_flags = {
-            "loot": False,
-            "energy": False,
-            "boss": False,
-        }
+        stage_value = current_state.get("onboarding_stage")
+        if isinstance(stage_value, str) and stage_value:
+            stage = cast(str, stage_value)
+        else:
+            stage = STAGE_0
+        feature_flags = _feature_flags_for_stage(stage)
         feature_flags.update(current_state.get("feature_flags", {}))
         return {
             "onboarding_stage": stage,
@@ -309,6 +345,35 @@ class GoalSettingAgent:
             "log": log,
         }
 
+    def set_onboarding_stage(
+        self,
+        conversation_id: str,
+        stage_label: str,
+        *,
+        user_id: str | None = None,
+    ) -> dict[str, Any] | None:
+        """Set onboarding stage, persisting to storage and refreshing feature flags."""
+
+        state = self.state_manager.get_state(conversation_id)
+        if state is None:
+            return None
+        user_id = user_id or state.get("user_id", "default_user")
+        self.storage.save_user_preferences(
+            {
+                "user_id": user_id,
+                "onboarding_stage": stage_label,
+            }
+        )
+        self.storage.update_player_progress(
+            user_id,
+            {"stage_label": stage_label, "focus_goal_id": state.get("goal_id")},
+        )
+        flags = _feature_flags_for_stage(stage_label)
+        state["onboarding_stage"] = stage_label
+        state["feature_flags"] = flags
+        self.state_manager.update_state(conversation_id, state)
+        return state
+
     def propose_quests(
         self,
         conversation_id: str,
@@ -386,3 +451,21 @@ class GoalSettingAgent:
             context,
             now=now or datetime.now(timezone.utc),
         )
+
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+
+    def _ensure_user_preferences(self, user_id: str) -> UserPreferences:
+        prefs = self.context_loader.get_user_preferences(user_id)
+        # Persist defaults only if the preference row does not exist yet
+        if self.storage.get_user_preferences(user_id) is None:
+            self.storage.save_user_preferences(
+                {
+                    "user_id": user_id,
+                    "challenge_appetite": prefs.challenge_appetite,
+                    "theme_preference": prefs.theme_preference,
+                    "onboarding_stage": prefs.onboarding_stage,
+                }
+            )
+        return prefs

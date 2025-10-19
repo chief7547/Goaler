@@ -9,6 +9,7 @@ from dataclasses import dataclass
 class UserPreferences:
     challenge_appetite: str = "MEDIUM"
     theme_preference: str = "GAME"
+    onboarding_stage: str = "STAGE_0_ONBOARDING"
 
 
 class ContextLoader:
@@ -24,6 +25,7 @@ class ContextLoader:
         return UserPreferences(
             challenge_appetite=record.get("challenge_appetite", "MEDIUM"),
             theme_preference=record.get("theme_preference", "GAME"),
+            onboarding_stage=record.get("onboarding_stage", "STAGE_0_ONBOARDING"),
         )
 
 

@@ -27,6 +27,8 @@
 - `get_user_preferences(user_id)` → 사용자 성향·선호
 - `get_player_progress(user_id)` → 현재 Stage/레벨/스트릭
 - `list_recent_quest_logs(goal_id, limit=10)` → 최근 수행 기록
+- `save_user_preferences(user_id, onboarding_stage)` → 온보딩 Stage/테마 업데이트
+- `update_player_progress(user_id, stage_label, focus_goal_id)` → Stage/진척 정보 갱신
 - `create_goal(goal: GoalCreate)` / `update_motivation(goal_id, motivation)`
 - `create_metric(goal_id, metric: MetricCreate)`
 - `create_quest(goal_id, quest: QuestCreate)`
@@ -320,6 +322,25 @@
 - Stage 변화 로직과 연동: `player_progress`의 Stage/레벨/스트릭을 업데이트할 때 승급/강등 여부를 판단해 텍스트 연출과 경고 메시지를 챗봇이 전송합니다.
 - 온보딩 연동: `user_preferences.onboarding_stage`가 `STAGE_0_ONBOARDING`~`STAGE_1_5_BOSS_PREVIEW` 구간에 있을 때는 전리품/에너지 관련 도구 호출을 단계별로 지연하거나 설명을 간소화합니다. 해금 조건은 `docs/ONBOARDING_PLAN.md`를 따라야 합니다.
 
+### 2.10 set_onboarding_stage (Phase 5 준비용)
+- **목적**: 온보딩 Stage가 해금 조건을 만족했을 때 `player_progress`와 `user_preferences`를 동시에 갱신하고, 대화 상태에 새로운 기능 플래그를 반영한다.
+- **입력**
+  ```json
+  {
+    "conversation_id": "uuid",
+    "stage_label": "STAGE_1_ENERGY",
+    "user_id": "user-123" (선택)
+  }
+  ```
+- **출력**: 업데이트된 대화 상태 스냅샷 (`onboarding_stage`, `feature_flags` 포함)
+- **처리 순서**
+  1. `Storage.save_user_preferences`를 호출해 `onboarding_stage`를 기록한다.
+  2. `Storage.update_player_progress`로 Stage/집중 목표를 갱신한다.
+  3. `_feature_flags_for_stage(stage_label)`을 통해 대화 상태의 기능 해금 플래그를 갱신한다.
+  4. 이후 변주/전리품/에너지 관련 도구는 해당 플래그를 기준으로 노출된다.
+
+> Stage 전환은 `docs/ONBOARDING_PLAN.md`의 해금 조건을 충족했을 때만 호출하도록 하고, 테스트 케이스를 통해 Stage → 기능 플래그 매핑이 어긋나지 않는지 보장한다.
+
 ## 3. 저장소 메서드 요약
 - `Storage` 클래스는 위 함수들이 필요로 하는 CRUD를 전부 제공해야 하며, 각 메서드는 실패 시 명시적 예외를 던집니다. 예)
   - `GoalNotFoundError`
@@ -337,11 +358,14 @@ class Storage:
     def create_goal(self, goal: GoalCreate) -> Goal: ...
     def add_metric(self, goal_id: str, metric: MetricCreate) -> Metric: ...
     def get_user_preferences(self, user_id: str) -> UserPreferences | None: ...
+    def save_user_preferences(self, payload: UserPreferencesUpsert) -> UserPreferences: ...
     def get_player_progress(self, user_id: str) -> PlayerProgress | None: ...
+    def update_player_progress(self, user_id: str, update: PlayerProgressUpdate) -> PlayerProgress: ...
     def list_recent_quest_logs(self, goal_id: str, limit: int = 10) -> list[QuestLog]: ...
     def create_quest(self, goal_id: str, quest: QuestCreate) -> Quest: ...
     def log_quest_event(self, entry: QuestLogCreate) -> QuestLog: ...
-    def update_player_progress(self, user_id: str, update: PlayerProgressUpdate) -> PlayerProgress: ...
+    def create_reminder(self, payload: ReminderCreate) -> Reminder: ...
+    def list_reminders_due(self, now_ts: datetime) -> list[Reminder]: ...
     def update_motivation(self, goal_id: str, motivation: str) -> Goal: ...
     def finalize_goal(self, goal_id: str) -> Goal: ...
 ```

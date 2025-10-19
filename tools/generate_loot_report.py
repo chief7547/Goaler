@@ -5,15 +5,23 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from collections import Counter
+from functools import lru_cache
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Iterable, Optional, TYPE_CHECKING, Type
 
 from sqlalchemy import select
 
 from core.storage import SQLAlchemyStorage, create_session
 from core.models import BossStage, Goal, QuestLog
+from core.coach import REPORT_SUMMARY_PROMPT
+
+if TYPE_CHECKING:  # pragma: no cover - typing aid only
+    from openai import OpenAI as OpenAIClient
+else:  # pragma: no cover - runtime fallback for typing
+    OpenAIClient = Any
 
 DEFAULT_OUTPUT_DIR = Path("reports")
 DEFAULT_USAGE_LOG = Path("logs/llm_usage.log")
@@ -180,6 +188,8 @@ def render_report(summary: dict[str, Any]) -> str:
     else:
         usage_text = "최근 기간 동안 LLM 사용 기록이 없습니다."
 
+    growth_story = compose_growth_story(summary)
+
     lines = [
         f"# {period_label} Loot Chronicle — {summary['user_label']}",
         f"생성 시각: {summary['generated_at']}",
@@ -205,6 +215,9 @@ def render_report(summary: dict[str, Any]) -> str:
         "",
         "## 5. LLM 사용량",
         usage_text,
+        "",
+        "## 6. 성장 서사",
+        growth_story,
     ]
     return "\n".join(lines)
 
@@ -215,6 +228,73 @@ def write_report(content: str, summary: dict[str, Any], output_dir: Path) -> Pat
     path = output_dir / filename
     path.write_text(content, encoding="utf-8")
     return path
+
+
+def compose_growth_story(summary: dict[str, Any]) -> str:
+    """Compose a narrative paragraph summarising the period using the LLM prompt."""
+
+    highlights = summary.get("recent_quotes") or []
+    context = {
+        "period": summary.get("period"),
+        "loot_highlights": highlights,
+        "loot_counts": summary.get("loot_counts"),
+        "energy_counts": summary.get("energy_counts"),
+        "boss_completed": summary.get("boss_completed"),
+        "boss_in_progress": summary.get("boss_in_progress"),
+        "boss_next": summary.get("boss_next"),
+    }
+
+    if _should_use_llm():  # pragma: no cover - requires network credentials
+        try:
+            openai_cls = _acquire_openai_class()
+            if openai_cls is None:
+                raise RuntimeError("OpenAI client unavailable")
+            client = openai_cls(api_key=os.getenv("OPENAI_API_KEY"))
+            response = client.responses.create(
+                model=os.getenv("LOOT_REPORT_SUMMARY_MODEL", "gpt-5-mini"),
+                input=[
+                    {"role": "system", "content": REPORT_SUMMARY_PROMPT},
+                    {
+                        "role": "user",
+                        "content": json.dumps(context, ensure_ascii=False),
+                    },
+                ],
+            )
+            text = response.output_text.strip()
+            if text:
+                return text
+        except Exception:
+            # For robustness fall back to templated text if the live call fails.
+            pass
+
+    if not highlights:
+        return "이번 기간에는 전리품 기록이 적어 간단히 다음 모험을 준비해요."
+
+    excerpt = "; ".join(highlights)
+    return (
+        "전리품 덱에 남아 있는 이야기들을 돌아보면, "
+        f"{excerpt} 같은 순간이 이번 여정을 빛나게 했어요. "
+        "다음 모험에서도 이 감각을 살려 한 단계 더 도약해볼까요?"
+    )
+
+
+def _should_use_llm() -> bool:
+    if _acquire_openai_class() is None:
+        return False
+    flag = os.getenv("GOALER_USE_MOCK")
+    if flag is None:
+        return False
+    return flag.strip().lower() in {"0", "false", "no"}
+
+
+@lru_cache(maxsize=1)
+def _acquire_openai_class() -> Optional[Type[OpenAIClient]]:  # pragma: no cover - cache wrapper
+    try:
+        from openai import OpenAI  # type: ignore
+
+        return OpenAI
+    except ImportError:
+        return None
 
 
 def main() -> None:

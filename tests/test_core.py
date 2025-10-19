@@ -322,6 +322,7 @@ def test_compose_coach_reply_respects_user_preferences(agent, storage):
             user_id="user-pro",
             challenge_appetite="LOW",
             theme_preference="PROFESSIONAL",
+            onboarding_stage="STAGE_1_5_BOSS_PREVIEW",
         )
     )
     session.commit()
@@ -338,3 +339,35 @@ def test_compose_coach_reply_respects_user_preferences(agent, storage):
 
     assert "핵심 마일스톤" in reply or "실행 계획" in reply
     assert "천천히" in reply or "안정적으로" in reply
+
+
+def test_set_onboarding_stage_persists_to_storage(agent, storage) -> None:
+    conv_id = "stage_conv"
+    agent.create_goal(conv_id, "Stage Goal")
+    agent.set_onboarding_stage(conv_id, "STAGE_1_ENERGY")
+
+    state = agent.state_manager.get_state(conv_id)
+    assert state["onboarding_stage"] == "STAGE_1_ENERGY"
+    assert state["feature_flags"]["energy"] is True
+
+    prefs = storage.get_user_preferences("default_user")
+    assert prefs["onboarding_stage"] == "STAGE_1_ENERGY"
+
+    progress = storage.get_player_progress("default_user")
+    assert progress["stage_label"] == "STAGE_1_ENERGY"
+
+
+def test_create_goal_respects_existing_player_progress(agent, storage) -> None:
+    storage.upsert_player_progress(
+        {
+            "user_id": "default_user",
+            "stage_label": "STAGE_1_5_BOSS_PREVIEW",
+            "focus_goal_id": None,
+        }
+    )
+
+    conv_id = "existing_progress"
+    agent.create_goal(conv_id, "Existing Stage Goal")
+    state = agent.state_manager.get_state(conv_id)
+    assert state["onboarding_stage"] == "STAGE_1_5_BOSS_PREVIEW"
+    assert state["feature_flags"]["boss"] is True
