@@ -13,25 +13,32 @@ from urllib import error as urllib_error
 from urllib import request as urllib_request
 
 from dotenv import load_dotenv
-
-REPO_ROOT = Path(__file__).resolve().parent.parent
-if str(REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(REPO_ROOT))
-
 try:
-    from apscheduler.schedulers.blocking import BlockingScheduler  # type: ignore[import-not-found,import-untyped]
-    from apscheduler.triggers.cron import CronTrigger  # type: ignore[import-not-found,import-untyped]
+    from apscheduler.schedulers.blocking import BlockingScheduler  # type: ignore
+    from apscheduler.triggers.cron import CronTrigger  # type: ignore
 except ImportError:  # pragma: no cover - APScheduler optional until Phase 5 implementation
     BlockingScheduler = None  # type: ignore[assignment]
     CronTrigger = None  # type: ignore[assignment]
 
-from tools.generate_loot_report import (
-    compose_growth_story,
-    gather_summary,
-    render_report,
-    write_report,
-)
-from core.storage import SQLAlchemyStorage, create_session
+try:
+    from tools.generate_loot_report import (  # type: ignore[import-not-found]
+        compose_growth_story,
+        gather_summary,
+        render_report,
+        write_report,
+    )
+    from core.storage import SQLAlchemyStorage, create_session  # type: ignore[import-not-found]
+except ModuleNotFoundError:  # pragma: no cover - executed when run as script
+    PROJECT_ROOT = Path(__file__).resolve().parent.parent
+    if str(PROJECT_ROOT) not in sys.path:
+        sys.path.insert(0, str(PROJECT_ROOT))
+    from tools.generate_loot_report import (
+        compose_growth_story,
+        gather_summary,
+        render_report,
+        write_report,
+    )
+    from core.storage import SQLAlchemyStorage, create_session
 
 
 LOG_PATH = Path("logs/report_worker.log")
@@ -59,7 +66,9 @@ def run_once(
     """Generate a single report immediately and return its path."""
 
     logging.info(
-        "Starting loot report generation | period=%s user_id=%s", period, user_id or "all-users"
+        "Starting loot report generation | period=%s user_id=%s",
+        period,
+        user_id or "all-users",
     )
     session = create_session(database_url)
     try:
