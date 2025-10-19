@@ -7,4 +7,5 @@ __all__ = [
     "storage",
     "coach",
     "user_preferences",
+    "llm_limits",
 ]

@@ -5,9 +5,14 @@
 
 ## 1. 서비스 가동 전 점검
 - `.env`에 `OPENAI_API_KEY`, `GOALER_DATABASE_URL`, `LOOT_REPORT_OUTPUT_DIR` 등 필수 값 설정
+- LLM 한도 환경 변수(`LLM_MAX_*`, `LLM_LIMIT_REACHED_MESSAGE`)가 목표치에 맞게 설정되었는지 확인
+- `alembic upgrade head` 로 마이그레이션을 최신 상태로 맞춘 뒤 결과 로그를 보관
+- `GOALER_ACTIVE_USER_ID`가 배포 환경의 실제 사용자/세션 ID로 설정되었는지 검증
 - `python tools/report_worker.py --period monthly --cron "0 9 * * *" --verbose` 로 스케줄러 드라이런
 - `GOALER_USE_MOCK=false python app.py` 로 실전 모드 스모크 테스트 수행 (목표 생성 → 퀘스트 완료 → 전리품 기록)
 - CI 대시보드 확인: lint/typecheck/pytest/coverage/golden-check 5가지가 녹색인지 확인
+- 워커 재시도 설정(`REPORT_WORKER_RETRIES`, `REPORT_WORKER_RETRY_DELAY`)과 잠금 파일(`logs/report_worker.lock`) 관리 정책 점검
+- Redis 사용 시 `LLM_REDIS_URL`, `REPORT_WORKER_REDIS_URL` 연결 테스트 및 TTL 설정 확인
 
 ## 2. 일일/주간 루틴
 | 빈도 | 수행 항목 | 참고 |
@@ -50,6 +55,7 @@
   3. 백업/복원 절차를 PostgreSQL 버전으로 갱신하고, 장애 훈련을 시행
 - 스키마 변경을 안전하게 수행하기 위해 Alembic을 도입한다. (예: `alembic revision --autogenerate -m "add column"`, `alembic upgrade head`) 배포 전에는 반드시 마이그레이션 스크립트를 검토한다.
 - `docs/DEVELOPMENT_PLAYBOOK.md` Phase 6에 “PostgreSQL 전환 + Alembic 도입” 작업을 명시하고, 책임자/일정을 추적한다.
+- 감사 백로그 반영: QuestLog 인덱스 추가, LLM 쿼터 외부 저장소, `default_user` 제거, 스케줄러 재시도/분산 락 설계를 진행하면서 본 SOP와 리스크 레지스터를 동기화한다.
 
 ## 6. 문서 히스토리
 - 2025-02-20: 초기 SOP 초안 작성 (cli)

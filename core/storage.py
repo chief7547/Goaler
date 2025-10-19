@@ -52,11 +52,13 @@ class SQLAlchemyStorage:
     # Goals
     # ------------------------------------------------------------------
     def create_goal(self, payload: dict) -> dict:
+        if "user_id" not in payload or not payload["user_id"]:
+            raise ValueError("user_id is required when creating a goal")
         goal = Goal(
             title=payload["title"],
             goal_type=payload.get("goal_type", "ONE_TIME"),
             motivation=payload.get("motivation"),
-            user_id=payload.get("user_id", "default_user"),
+            user_id=payload["user_id"],
         )
         self.session.add(goal)
         self.session.commit()
@@ -361,19 +363,51 @@ class SQLAlchemyStorage:
 
 def create_session_factory(database_url: str | None = None) -> sessionmaker[Session]:
     url = database_url or os.getenv("GOALER_DATABASE_URL") or "sqlite:///data/goaler.db"
-    if url.startswith("sqlite:///") and not url.startswith("sqlite:///:memory:"):
-        db_path = url.replace("sqlite:///", "", 1)
-        directory = os.path.dirname(db_path)
-        if directory:
-            os.makedirs(directory, exist_ok=True)
-    engine = create_engine(url, future=True)
-    Base.metadata.create_all(engine)
+
+    engine_kwargs: dict = {"future": True, "pool_pre_ping": True}
+
+    if url.startswith("sqlite:///"):
+        if not url.startswith("sqlite:///:memory:"):
+            db_path = url.replace("sqlite:///", "", 1)
+            directory = os.path.dirname(db_path)
+            if directory:
+                os.makedirs(directory, exist_ok=True)
+        engine_kwargs.setdefault("connect_args", {})["check_same_thread"] = False
+    else:
+        pool_size = _as_int_env("GOALER_DB_POOL_SIZE")
+        if pool_size:
+            engine_kwargs["pool_size"] = pool_size
+        max_overflow = _as_int_env("GOALER_DB_MAX_OVERFLOW")
+        if max_overflow is not None:
+            engine_kwargs["max_overflow"] = max_overflow
+
+    engine = create_engine(url, **engine_kwargs)
+
+    if _should_autocreate_schema():
+        Base.metadata.create_all(engine)
+
     return sessionmaker(bind=engine, expire_on_commit=False, future=True)
 
 
 def create_session(database_url: str | None = None) -> Session:
     factory = create_session_factory(database_url)
     return factory()
+
+
+def _should_autocreate_schema() -> bool:
+    flag = os.getenv("GOALER_AUTO_CREATE_SCHEMA", "true").strip().lower()
+    return flag not in {"0", "false", "no"}
+
+
+def _as_int_env(name: str) -> int | None:
+    value = os.getenv(name)
+    if not value:
+        return None
+    try:
+        parsed = int(value)
+    except ValueError:
+        return None
+    return parsed
 
 
 __all__ = [

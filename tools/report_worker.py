@@ -6,13 +6,17 @@ import argparse
 import json
 import logging
 import os
-import sys
+import time
 from contextlib import suppress
 from pathlib import Path
 from urllib import error as urllib_error
 from urllib import request as urllib_request
 
 from dotenv import load_dotenv
+try:  # pragma: no cover - optional dependency
+    import redis  # type: ignore[import-not-found]
+except ImportError:  # pragma: no cover - optional dependency
+    redis = None  # type: ignore
 try:
     from apscheduler.schedulers.blocking import BlockingScheduler  # type: ignore
     from apscheduler.triggers.cron import CronTrigger  # type: ignore
@@ -20,28 +24,18 @@ except ImportError:  # pragma: no cover - APScheduler optional until Phase 5 imp
     BlockingScheduler = None  # type: ignore[assignment]
     CronTrigger = None  # type: ignore[assignment]
 
-try:
-    from tools.generate_loot_report import (  # type: ignore[import-not-found]
-        compose_growth_story,
-        gather_summary,
-        render_report,
-        write_report,
-    )
-    from core.storage import SQLAlchemyStorage, create_session  # type: ignore[import-not-found]
-except ModuleNotFoundError:  # pragma: no cover - executed when run as script
-    PROJECT_ROOT = Path(__file__).resolve().parent.parent
-    if str(PROJECT_ROOT) not in sys.path:
-        sys.path.insert(0, str(PROJECT_ROOT))
-    from tools.generate_loot_report import (
-        compose_growth_story,
-        gather_summary,
-        render_report,
-        write_report,
-    )
-    from core.storage import SQLAlchemyStorage, create_session
+from core.llm_limits import LLMQuotaManager
+from core.storage import SQLAlchemyStorage, create_session
+from tools.generate_loot_report import (
+    compose_growth_story,
+    gather_summary,
+    render_report,
+    write_report,
+)
 
 
 LOG_PATH = Path("logs/report_worker.log")
+LOCK_PATH = Path("logs/report_worker.lock")
 
 
 def _configure_logging(verbose: bool = False) -> None:
@@ -54,6 +48,71 @@ def _configure_logging(verbose: bool = False) -> None:
         format="%(asctime)s [%(levelname)s] %(message)s",
         handlers=handlers,
     )
+
+
+class ReportJobLockError(RuntimeError):
+    """Raised when the report worker detects another active run."""
+
+
+class ReportJobLock:
+    """Simple file-based lock to avoid duplicate report execution."""
+
+    def __init__(self, path: Path) -> None:
+        self._path = path
+        self._fd: int | None = None
+        redis_url = os.getenv("REPORT_WORKER_REDIS_URL")
+        self._redis_client = None
+        if redis_url:
+            if redis is None:  # pragma: no cover - optional dependency guard
+                raise RuntimeError(
+                    "REPORT_WORKER_REDIS_URL is set but the redis package is not installed."
+                )
+            self._redis_client = redis.Redis.from_url(redis_url)
+        self._redis_key = os.getenv("REPORT_WORKER_REDIS_KEY", "goaler:report_worker_lock")
+        self._redis_ttl = int(os.getenv("REPORT_WORKER_LOCK_TTL", "600"))
+
+    def __enter__(self):
+        self.acquire()
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:  # noqa: D401 - context manager protocol
+        self.release()
+
+    def acquire(self) -> None:
+        if self._redis_client is not None:
+            try:
+                acquired = self._redis_client.set(
+                    self._redis_key,
+                    os.getpid(),
+                    nx=True,
+                    ex=self._redis_ttl,
+                )
+            except Exception as exc:  # pragma: no cover - Redis connection failure
+                raise ReportJobLockError("Failed to acquire Redis lock") from exc
+            if not acquired:
+                raise ReportJobLockError("Another report job is already running")
+            return
+
+        self._path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            self._fd = os.open(self._path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            os.write(self._fd, str(os.getpid()).encode("utf-8"))
+        except FileExistsError as exc:  # pragma: no cover - timing dependent
+            raise ReportJobLockError("Another report job is already running") from exc
+
+    def release(self) -> None:
+        if self._redis_client is not None:
+            try:
+                self._redis_client.delete(self._redis_key)
+            except Exception:  # pragma: no cover - Redis connection failure
+                pass
+            return
+
+        if self._fd is not None:
+            os.close(self._fd)
+            self._fd = None
+        with suppress(FileNotFoundError):
+            self._path.unlink()
 
 
 def run_once(
@@ -70,12 +129,23 @@ def run_once(
         period,
         user_id or "all-users",
     )
+    quota_manager = LLMQuotaManager(database_url=database_url)
     session = create_session(database_url)
     try:
         storage = SQLAlchemyStorage(session)
         summary = gather_summary(storage, period=period, user_id=user_id)
-        narrative = compose_growth_story(summary)
-        content = render_report(summary)
+        quota_user = summary.get("user_label") or (user_id or "system_worker")
+        narrative = compose_growth_story(
+            summary,
+            quota_manager=quota_manager,
+            quota_user=quota_user,
+        )
+        content = render_report(
+            summary,
+            quota_manager=quota_manager,
+            quota_user=quota_user,
+            growth_story=narrative,
+        )
         report_path = write_report(content, summary, output_dir or Path("reports"))
         logging.info("Report generated at %s", report_path)
         _notify_slack(summary, narrative, report_path)
@@ -106,17 +176,31 @@ def schedule_reports(
     scheduler = BlockingScheduler()
     trigger = CronTrigger.from_crontab(cron)
 
+    max_retries = int(os.getenv("REPORT_WORKER_RETRIES", "3"))
+    base_delay = int(os.getenv("REPORT_WORKER_RETRY_DELAY", "5"))
+
     def job() -> None:
-        try:
-            run_once(
-                period,
-                user_id=user_id,
-                database_url=database_url,
-                output_dir=output_dir,
-            )
-        except Exception:  # pragma: no cover - logged in run_once
-            # run_once already logs; leave failure recorded for monitoring
-            pass
+        for attempt in range(max_retries):
+            try:
+                with ReportJobLock(LOCK_PATH):
+                    run_once(
+                        period,
+                        user_id=user_id,
+                        database_url=database_url,
+                        output_dir=output_dir,
+                    )
+                break
+            except ReportJobLockError:
+                logging.info(
+                    "Report job for %s skipped because another instance holds the lock",
+                    period,
+                )
+                break
+            except Exception:  # pragma: no cover - logged in run_once
+                logging.exception("Report job failed (attempt %s)", attempt + 1)
+                if attempt + 1 == max_retries:
+                    break
+                time.sleep(base_delay * (attempt + 1))
 
     scheduler.add_job(
         job,
@@ -240,9 +324,13 @@ if __name__ == "__main__":
             output_dir=output_dir,
         )
     else:
-        run_once(
-            args.period,
-            user_id=args.user_id,
-            database_url=db_url,
-            output_dir=output_dir,
-        )
+        try:
+            with ReportJobLock(LOCK_PATH):
+                run_once(
+                    args.period,
+                    user_id=args.user_id,
+                    database_url=db_url,
+                    output_dir=output_dir,
+                )
+        except ReportJobLockError as exc:
+            logging.info("Report job skipped: %s", exc)

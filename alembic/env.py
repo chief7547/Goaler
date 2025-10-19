@@ -6,7 +6,7 @@ import os
 from logging.config import fileConfig
 from pathlib import Path
 
-from alembic import context
+from alembic import context  # type: ignore[attr-defined]
 from sqlalchemy import engine_from_config, pool
 
 from dotenv import load_dotenv

@@ -132,7 +132,7 @@
 - `tests/test_core.py`에 `define_boss_stages`/`propose_weekly_plan`/`propose_quests` 시나리오 추가
 
 ### Hand-off Checklist
-- [x] 보스전 1개 이상 성공/실패 루프 테스트 (`test_define_boss_stages_persisted_and_sorted`, `test_log_quest_outcome_handles_failure`)
+- [x] 보스전 1개 이상 성공/실패 루프 테스트 (정렬·실패 처리 시나리오)
 - [x] 변주 reason이 로그에 남는지 확인 (`test_propose_quests_after_unlock_returns_variations`에서 reason 확인)
 - [x] 온보딩 상태에 따라 노출 기능이 달라지는지 확인 (`test_propose_quests_locked_until_loot_unlocked`)
 
@@ -250,28 +250,80 @@
 ### Hand-off Checklist
 - [ ] 운영팀/협력자와 런칭 리허설 *(프론트엔드 및 운영 담당자 합류 후 수행)*
 - [ ] Go/No-Go 체크리스트 완료 *(동일 조건)*
-- [ ] Phase 6 준비 계획 확정 (PostgreSQL 전환, Alembic 도입, LLM 비용 제한 정책)
+- [x] Phase 6 준비 계획 확정 (PostgreSQL 전환, Alembic 도입, LLM 비용 제한 정책)
 
 ---
 
-## Phase 6 — Operational Hardening (예정)
-**목표:** 초기 런칭 후 안정화와 확장성 확보.
+## Phase 6 — Operational Hardening
+**목표:** 초기 런칭 직후 서비스가 안정적으로 굴러가도록 데이터베이스·비용·모니터링 체계를 강화한다.
 
-### 주요 항목 (초안)
-1. **DB 인프라 전환**  
-   - SQLite → PostgreSQL 전환, CI/CD 환경 포함  
-   - 세션 풀/재시도 정책 재설계, `docs/OPERATIONS_SOP.md §7`과 연동
-2. **스키마 마이그레이션 체계화**  
-   - Alembic 도입 (`alembic.ini`, `migrations/`)  
-   - `alembic revision --autogenerate` / `alembic upgrade head` 워크플로우 문서화
-3. **LLM 비용 통제 및 레이트리밋**  
-   - Redis 등으로 사용자/전역 토큰 사용량 추적 및 임계치 차단  
-   - 초과 시 안내 메시지 반환 + 관리자 알림
-4. **장기 워커 확장**  
-   - Celery 등 분산 워커 도입 여부 검토  
-   - Sentry/Prometheus 등 모니터링 도입
+### Inputs
+- `docs/DB_MIGRATION_PLAN.md` (PostgreSQL 전환 절차)
+- `alembic/` 디렉터리, `alembic.ini`
+- `docs/OPERATIONS_SOP.md §1~3, §7` (운영 루틴/백업/동시성 주의사항)
+- `docs/LLM_USAGE_GUIDE.md`, `core/llm_limits.py` (쿼터 설정)
+- `tools/report_worker.py`, `docs/LOOT_REPORT_WORKFLOW.md` (스케줄러 운용)
 
-> 현재 단계는 CLI 기반 프로토타입이므로, 실제 사용자 경험 검증과 운영 리허설은 프론트엔드 및 추가 팀원이 합류한 이후 `docs/VALIDATION_PLAN.md`를 따라 진행한다.
+### Tasks
+1. **PostgreSQL 전환 리허설**  
+   - `.env`에 Postgres용 `GOALER_DATABASE_URL` 작성, `GOALER_AUTO_CREATE_SCHEMA=false` 확인  
+   - `alembic upgrade head` 실행 → 연결/권한/마이그레이션 성공 로그 캡처  
+   - `GOALER_DB_POOL_SIZE`, `GOALER_DB_MAX_OVERFLOW`로 세션 풀 파라미터 조정 후 `python app.py` 스모크 테스트
+2. **Alembic 워크플로우 내재화**  
+   - 스키마 변경 시 `alembic revision --autogenerate -m "<변경 설명>"` → 코드와 diff 검토  
+   - `alembic history --verbose`로 마이그레이션 체인 점검, 실패 시 롤백(`alembic downgrade -1`) 리허설  
+   - SOP에 명시된 백업 절차와 함께 배포 전/후 체크리스트에 Alembic 명령어 포함
+3. **LLM 비용·요청 레이트리밋 구성**  
+   - 한도 환경 변수(`LLM_MAX_*`, `LLM_LIMIT_REACHED_MESSAGE`)를 정의하고 기본값 문서화  
+   - `pytest tests/test_llm_limits.py`로 한도 초과 시 `LLMRateLimitError`가 발생하는지 확인  
+   - `GOALER_USE_MOCK=false python app.py`에서 의도적으로 임계치를 낮게 설정하여 차단 메시지 출력 로그 수집
+4. **리포트 워커 운영 자동화**  
+   - `python tools/report_worker.py --period monthly --verbose` 단발 실행으로 로그/Slack 통지 확인  
+   - APScheduler 설치 시 `--cron "0 9 * * *"` 등으로 장기 스케줄러 기동 → `logs/report_worker.log`에 성공/실패 기록 남김  
+   - 워커와 CLI가 동시에 DB를 사용할 때 잠금이 발생하면 재시도 정책을 설정하고 SOP에 갱신
+5. **모니터링 및 리스크 업데이트**  
+   - 핵심 로그(`logs/llm_usage.log`, `logs/report_worker.log`) 일일 점검 루틴을 SOP·Risk Register에 반영  
+   - 예상되는 실패 시나리오(비용 급등, 마이그레이션 실패)를 `docs/VALIDATION_PLAN.md`와 연동해 운영 리허설 계획 수립
+
+### Quality Gates
+- PostgreSQL 환경에서 `alembic upgrade head` 및 `alembic downgrade -1` 리허설 로그 확보
+- `pytest tests/test_llm_limits.py` 및 샘플 LLM 차단 시나리오 실행 결과 캡처
+- `tools/report_worker.py` 실행으로 생성된 리포트/Slack 알림/로그 파일 보존
+- `docs/OPERATIONS_SOP.md`, `docs/DB_MIGRATION_PLAN.md`, `docs/LLM_USAGE_GUIDE.md`에 최신 운영 절차 반영되었는지 재확인
+
+### Artifacts
+- `alembic/versions/` 마이그레이션 스크립트와 실행 로그
+- `tests/test_llm_limits.py`, `logs/llm_usage.log`, `logs/report_worker.log`
+- 업데이트된 운영 문서: SOP, Migration Plan, Validation Plan, Risk Register
+
+### Hand-off Checklist
+- [x] PostgreSQL 전환 및 롤백 리허설 기록 공유 (`reports/postgres_dryrun.log`)
+- [ ] LLM 쿼터 파라미터와 임계치 확정 후 운영팀 합의 메모 보관
+- [ ] 리포트 워커 상시 기동 절차(스케줄러/Slack 경보)가 자동화되어 있는지 운영팀과 확인
+
+> Phase 6까지 수행한 뒤 프론트엔드·운영팀이 합류하면 `docs/VALIDATION_PLAN.md`에 따라 실제 사용자 검증을 진행한다.
+
+---
+
+## 감사 이후 전문 백로그 (Audit Backlog)
+최종 감사에서 도출된 운영 안정화 항목은 아래 순서로 진행한다. 각 항목은 별도 티켓으로 전환해 추적한다.
+
+1. **Quest 로그 인덱스 확장** *(완료됨)*  
+   - 대상: `core/models.py`의 `QuestLog.goal_id`, `QuestLog.quest_id`  
+   - 작업: SQLAlchemy 모델에 `index=True` 추가 → Alembic 마이그레이션 작성 (`0003_add_indexes_to_quest_log`)  
+   - 검증: `GOALER_DATABASE_URL=sqlite:///data/alembic_ci.db alembic upgrade head` + `pytest tests/test_loot_report.py`
+2. **LLM 쿼터 지속성 강화** *(DB + Redis 옵션 적용 완료)*  
+   - `llm_daily_usage` 테이블로 재시작 시에도 한도가 유지되며, `LLM_REDIS_URL`을 설정하면 Redis 캐시를 병행 사용  
+   - Redis 사용 여부에 따라 SOP/환경 변수(`LLM_REDIS_KEY_PREFIX`, `LLM_REDIS_TTL`)를 점검하고 모니터링을 유지한다.
+3. **사용자 식별 강제**  
+   - `core/agent.py` 등에서 `user_id="default_user"` 폴백 제거  
+   - 인증 계층 도입 시, 미인증 요청은 게이트웨이/미들웨어에서 차단  
+   - CLI mock 흐름 전용 폴백은 별도 가드로 분리
+4. **스케줄러 내구성 향상** *(기본 재시도 + Redis 잠금 옵션 적용)*  
+   - APScheduler 실패 재시도와 파일/Redis 기반 잠금 도입 (`REPORT_WORKER_REDIS_URL`, `REPORT_WORKER_REDIS_KEY`)  
+   - 향후 트래픽 증가 시 Celery/분산 큐 전환 여부를 검토하고 필요 시 로드맵을 갱신한다.
+
+> 위 항목은 Phase 6 이후 우선순위에 따라 진행하며, 완료 시 본 섹션을 업데이트한다.
 
 ---
 

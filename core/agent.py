@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from datetime import datetime, timezone
 from textwrap import dedent
 from typing import Any, Iterable, cast
@@ -31,6 +32,15 @@ def _feature_flags_for_stage(stage: str) -> dict[str, bool]:
     base = {"loot": False, "energy": False, "boss": False}
     base.update(_STAGE_FEATURE_MATRIX.get(stage, {}))
     return base
+
+
+def _resolve_user_id(explicit: str | None) -> str:
+    user_id = explicit or os.getenv("GOALER_ACTIVE_USER_ID")
+    if not user_id:
+        raise ValueError(
+            "user_id is required. Set GOALER_ACTIVE_USER_ID or pass user_id explicitly."
+        )
+    return user_id
 
 
 def _coerce_metric_details(
@@ -123,7 +133,7 @@ class GoalSettingAgent:
     ) -> dict | None:
         """Initialise a new goal in the state manager."""
 
-        user_id = user_id or "default_user"
+        user_id = _resolve_user_id(user_id)
         prefs = self._ensure_user_preferences(user_id)
         goal_record = self.storage.create_goal({"title": title, "user_id": user_id})
         progress = self.storage.get_player_progress(user_id)
@@ -357,7 +367,7 @@ class GoalSettingAgent:
         state = self.state_manager.get_state(conversation_id)
         if state is None:
             return None
-        user_id = user_id or state.get("user_id", "default_user")
+        user_id = _resolve_user_id(user_id or state.get("user_id"))
         self.storage.save_user_preferences(
             {
                 "user_id": user_id,
@@ -419,7 +429,7 @@ class GoalSettingAgent:
     ) -> str:
         state = self.state_manager.get_state(conversation_id) or {}
         goal_id = state.get("goal_id")
-        user_id = state.get("user_id", "default_user")
+        user_id = _resolve_user_id(state.get("user_id"))
         prefs = self.context_loader.get_user_preferences(user_id)
 
         challenge_appetite = state.get("challenge_appetite") or prefs.challenge_appetite

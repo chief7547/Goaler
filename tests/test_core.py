@@ -1,11 +1,15 @@
-from datetime import datetime, timezone
+import os
 import random
+from datetime import datetime, timezone
 
 import pytest
 
 from core.agent import GoalSettingAgent
 from core.coach import CoachResponder
 from core.models import UserPreference
+
+
+ACTIVE_USER = os.getenv("GOALER_ACTIVE_USER_ID", "test-user")
 
 
 class FixedRandom(random.Random):
@@ -34,7 +38,7 @@ def test_create_goal_initialises_state(agent) -> None:
     assert current_state["feature_flags"]["energy"] is False
     assert current_state["feature_flags"]["boss"] is False
     assert current_state["theme_preference"] == "GAME"
-    assert current_state["user_id"] == "default_user"
+    assert current_state["user_id"] == ACTIVE_USER
 
 
 def test_add_metric_updates_state(agent) -> None:
@@ -350,17 +354,17 @@ def test_set_onboarding_stage_persists_to_storage(agent, storage) -> None:
     assert state["onboarding_stage"] == "STAGE_1_ENERGY"
     assert state["feature_flags"]["energy"] is True
 
-    prefs = storage.get_user_preferences("default_user")
+    prefs = storage.get_user_preferences(ACTIVE_USER)
     assert prefs["onboarding_stage"] == "STAGE_1_ENERGY"
 
-    progress = storage.get_player_progress("default_user")
+    progress = storage.get_player_progress(ACTIVE_USER)
     assert progress["stage_label"] == "STAGE_1_ENERGY"
 
 
 def test_create_goal_respects_existing_player_progress(agent, storage) -> None:
     storage.upsert_player_progress(
         {
-            "user_id": "default_user",
+            "user_id": ACTIVE_USER,
             "stage_label": "STAGE_1_5_BOSS_PREVIEW",
             "focus_goal_id": None,
         }
