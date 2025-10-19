@@ -48,7 +48,7 @@
   1. `GOALER_DATABASE_URL`을 Postgres 호스트로 지정하고 연결 테스트
   2. SQLAlchemy 세션팩토리의 `pool_size`, `max_overflow` 등을 환경에 맞춰 조정
   3. 백업/복원 절차를 PostgreSQL 버전으로 갱신하고, 장애 훈련을 시행
-- 스키마 변경을 안전하게 수행하기 위해 Alembic을 도입한다. Revision 생성 → Upgrade 절차를 표준 운영 루틴으로 추가하며, 배포 전에는 반드시 마이그레이션 스크립트를 검토한다.
+- 스키마 변경을 안전하게 수행하기 위해 Alembic을 도입한다. (예: `alembic revision --autogenerate -m "add column"`, `alembic upgrade head`) 배포 전에는 반드시 마이그레이션 스크립트를 검토한다.
 - `docs/DEVELOPMENT_PLAYBOOK.md` Phase 6에 “PostgreSQL 전환 + Alembic 도입” 작업을 명시하고, 책임자/일정을 추적한다.
 
 ## 6. 문서 히스토리

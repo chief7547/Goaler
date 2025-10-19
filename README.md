@@ -85,3 +85,4 @@ PYTHONPATH=. pytest
 - `python tools/preflight.py --entry VIBECODE_ENTRY.md --init-lock-if-missing --check-secrets`
 - `python tools/generate_loot_report.py --period monthly`
 - `python tools/report_worker.py --period monthly --cron "0 9 * * *" --verbose`
+- `alembic upgrade head`
