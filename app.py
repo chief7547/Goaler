@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 from openai import OpenAI
 
 from core.agent import STAGE_0, GoalSettingAgent, SYSTEM_PROMPT
+from core.llm_limits import LLMQuotaManager, LLMRateLimitError
 
 STAGE_LABELS = {
     STAGE_0: "Stage 0 – Spark Awakening",
@@ -34,6 +35,16 @@ LLM_MODEL_PLAN = {
 }
 
 USAGE_LOG_PATH = Path("logs/llm_usage.log")
+
+
+def _active_user_id() -> str:
+    user_id = os.getenv("GOALER_ACTIVE_USER_ID")
+    if not user_id:
+        raise RuntimeError(
+            "GOALER_ACTIVE_USER_ID 환경 변수가 설정되어야 합니다. "
+            "사용자 식별 정보를 제공하세요."
+        )
+    return user_id
 
 
 def _log_llm_usage(model: str, usage: dict | None) -> None:
@@ -90,6 +101,7 @@ def _run_mock_conversation():
     print("(mock 모드 활성화: OpenAI 호출 없이 대화를 시뮬레이션합니다.)", flush=True)
 
     agent = GoalSettingAgent()
+    active_user = _active_user_id()
     conversation_id = f"mock_{uuid.uuid4()}"
 
     greeted = False
@@ -111,7 +123,11 @@ def _run_mock_conversation():
 
         if not goal_created:
             title = user_input.strip() or "나의 목표"
-            agent.create_goal(conversation_id=conversation_id, title=title)
+            agent.create_goal(
+                conversation_id=conversation_id,
+                title=title,
+                user_id=active_user,
+            )
             context = agent.get_onboarding_context(conversation_id)
             stage_code = context["onboarding_stage"]
             stage_label = STAGE_LABELS.get(stage_code, stage_code)
@@ -156,6 +172,9 @@ def _run_openai_conversation():
         "propose_quests": agent.propose_quests,
         "log_quest_outcome": agent.log_quest_outcome,
     }
+    quota_manager = LLMQuotaManager()
+
+    active_user = _active_user_id()
 
     model_name = DEFAULT_CHAT_MODEL
 
@@ -171,7 +190,11 @@ def _run_openai_conversation():
                         "title": {
                             "type": "string",
                             "description": "A short, descriptive title for the goal.",
-                        }
+                        },
+                        "user_id": {
+                            "type": "string",
+                            "description": "Identifier of the user creating the goal.",
+                        },
                     },
                     "required": ["title"],
                 },
@@ -360,7 +383,18 @@ def _run_openai_conversation():
 
         messages.append({"role": "user", "content": user_input})
 
+        limited = False
         while True:
+            state = agent.state_manager.get_state(conversation_id) or {}
+            quota_user = state.get("user_id") or active_user
+            try:
+                quota_manager.enforce_limit(quota_user)
+            except LLMRateLimitError as exc:
+                message = str(exc)
+                print(f"Goaler: {message}", flush=True)
+                messages.append({"role": "assistant", "content": message})
+                limited = True
+                break
             response = client.chat.completions.create(
                 model=model_name,
                 messages=messages,
@@ -369,6 +403,12 @@ def _run_openai_conversation():
             )
             usage_dict = _usage_to_dict(getattr(response, "usage", None))
             _log_llm_usage(model_name, usage_dict)
+            quota_manager.record_usage(
+                user_id=quota_user,
+                conversation_id=conversation_id,
+                model=model_name,
+                usage=usage_dict,
+            )
             response_message = response.choices[0].message
 
             if not response_message.tool_calls:
@@ -392,6 +432,8 @@ def _run_openai_conversation():
 
                 function_args = json.loads(tool_call.function.arguments or "{}")
                 function_args["conversation_id"] = conversation_id
+                if function_name == "create_goal" and "user_id" not in function_args:
+                    function_args["user_id"] = active_user
 
                 if (
                     function_name == "add_metric"
@@ -427,6 +469,11 @@ def _run_openai_conversation():
                         "content": json.dumps(tool_response),
                     }
                 )
+
+            if limited:
+                break
+        if limited:
+            continue
 
 
 def run_conversation():

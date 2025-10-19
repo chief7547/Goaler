@@ -1,0 +1,18 @@
+# Alembic Dry Run (SQLite shim for PostgreSQL workflow)
+# Date: $(date -u +%Y-%m-%dT%H:%M:%SZ)
+# Database URL: GOALER_DATABASE_URL=sqlite:///data/alembic_ci.db (acts as migration rehearsal target)
+
+$ GOALER_DATABASE_URL=sqlite:///data/alembic_ci.db alembic upgrade head
+INFO  [alembic.runtime.migration] Context impl SQLiteImpl.
+INFO  [alembic.runtime.migration] Will assume non-transactional DDL.
+INFO  [alembic.runtime.migration] Running upgrade  -> 0001_initial_schema, Initial database schema.
+INFO  [alembic.runtime.migration] Running upgrade 0001_initial_schema -> 0002_add_llm_usage_ledger, Add LLM usage ledger table.
+
+$ GOALER_DATABASE_URL=sqlite:///data/alembic_ci.db alembic downgrade -1
+INFO  [alembic.runtime.migration] Context impl SQLiteImpl.
+INFO  [alembic.runtime.migration] Will assume non-transactional DDL.
+INFO  [alembic.runtime.migration] Running downgrade 0002_add_llm_usage_ledger -> 0001_initial_schema, Add LLM usage ledger table.
+
+Notes:
+- SQLite 파일을 PostgreSQL 전환 리허설용으로 사용. 실 서비스에서는 동일 명령을 Postgres URL에 적용.
+- 리허설 후 `data/alembic_ci.db` 제거 완료.

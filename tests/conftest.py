@@ -8,6 +8,11 @@ from core.models import Base
 from core.storage import SQLAlchemyStorage
 
 
+@pytest.fixture(autouse=True)
+def _set_active_user_env(monkeypatch):
+    monkeypatch.setenv("GOALER_ACTIVE_USER_ID", "test-user")
+
+
 @pytest.fixture(scope="function")
 def session() -> Generator[Session, None, None]:
     engine = create_engine("sqlite:///:memory:", future=True)

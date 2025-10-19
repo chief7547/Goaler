@@ -1,7 +1,7 @@
 """Lightweight function schemas presented to the LLM tooling interface."""
 
 
-def create_goal(title: str) -> None:
+def create_goal(title: str, user_id: str) -> None:
     """Schema stub for the `create_goal` tool."""
 
 

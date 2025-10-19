@@ -28,3 +28,15 @@
 ## 4. 장애 대비
 - OpenAI API 장애 또는 비용 초과 시, `LLM_MODEL_PLAN`의 fallback을 사용하거나 `GOALER_USE_MOCK=true`로 mock 모드를 전환.
 - 에러 발생 시에도 로그에 “error” 필드를 남겨 재시도/분석이 가능하도록 합니다.
+
+## 5. 쿼터 및 차단 설정
+- `core/llm_limits.LLMQuotaManager`는 일일 토큰/요청 한도를 강제합니다.
+- 환경 변수
+  - `LLM_MAX_DAILY_TOKENS`, `LLM_MAX_DAILY_TOKENS_PER_USER`
+  - `LLM_MAX_DAILY_REQUESTS`, `LLM_MAX_DAILY_REQUESTS_PER_USER`
+  - `LLM_LIMIT_REACHED_MESSAGE` (사용자에게 노출되는 안내 문구)
+  - 선택 사항: `LLM_REDIS_URL`(공유 캐시), `LLM_REDIS_KEY_PREFIX`, `LLM_REDIS_TTL`
+- 기본값은 설정되지 않으며, 값이 없거나 0 이하이면 해당 한도는 비활성화됩니다.
+- 한도 변경 후에는 `pytest tests/test_llm_limits.py`로 동작을 확인하고, 실전 모드(`GOALER_USE_MOCK=false`)에서 차단 메시지를 수동 확인합니다.
+- 운영 감사 백로그: 일일 사용량을 외부 저장소(예: Redis)에 보존하거나, 앱 기동 시 `llm_usage_ledger`를 집계해 `LLMQuotaManager`에 초기화하는 기능을 도입합니다. 구현 후 본 문서와 SOP를 업데이트하세요.
+- 2025-10-19 이후 버전은 `llm_daily_usage` 테이블에 일별 누적치를 저장하고, `LLM_REDIS_URL`이 설정된 경우 Redis에도 누적합니다. 두 저장소 모두 재시작 후에도 한도가 유지되도록 설계되었습니다.

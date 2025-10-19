@@ -67,7 +67,7 @@ _TIME_TONE: Dict[str, str] = {
     "evening": "오늘도 수고 많았어요.",
 }
 
-_THEME_TERMS = {
+THEME_TERMS = {
     "GAME": {
         "boss": "보스전",
         "quest": "퀘스트",
@@ -140,7 +140,7 @@ class CoachResponder:
         return None
 
     def generate(self, ctx: ToneContext, *, now: Optional[datetime] = None) -> str:
-        terms = _THEME_TERMS.get(ctx.theme_preference, _THEME_TERMS["GAME"])
+        terms = THEME_TERMS.get(ctx.theme_preference, THEME_TERMS["GAME"])
 
         slot = ctx.time_of_day or _current_time_slot(now)
         header = _TIME_TONE.get(slot, _TIME_TONE["morning"])

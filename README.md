@@ -10,6 +10,12 @@ source .venv/bin/activate  # Windows는 .venv\Scripts\activate
 pip install -r requirements.txt
 python tools/preflight.py --entry VIBECODE_ENTRY.md --init-lock-if-missing --check-secrets
 # Slack 알림까지 테스트하려면 `.env`에 `OPENAI_API_KEY`, `SLACK_BOT_TOKEN`, `SLACK_CHANNEL`을 추가하세요.
+# LLM 일일 사용 한도를 설정하려면 `LLM_MAX_DAILY_TOKENS`, `LLM_MAX_DAILY_TOKENS_PER_USER`
+# `LLM_MAX_DAILY_REQUESTS`, `LLM_MAX_DAILY_REQUESTS_PER_USER`, `LLM_LIMIT_REACHED_MESSAGE`
+# 값을 함께 지정하면 됩니다.
+# 모든 목표/퀘스트 데이터는 사용자별로 로그되므로 `GOALER_ACTIVE_USER_ID` 값을 반드시 지정하세요.
+# 여러 서버에서 LLM 사용량/리포트를 공유하려면 `LLM_REDIS_URL`, `REPORT_WORKER_REDIS_URL`
+# (선택: `LLM_REDIS_KEY_PREFIX`, `LLM_REDIS_TTL`, `REPORT_WORKER_REDIS_KEY`, `REPORT_WORKER_LOCK_TTL`)을 설정하세요.
 ```
 
 ### 실행 모드
@@ -78,9 +84,16 @@ PYTHONPATH=. pytest
 - `docs/LLM_USAGE_GUIDE.md`: LLM 모델 사용 전략과 비용 모니터링 지침입니다.
 - `docs/ALERT_TEMPLATES.md`: 채널별 알림/경보 메시지 템플릿 모음입니다.
 - `docs/OPERATIONS_SOP.md`: 런칭 후 운영 시나리오와 장애 대응 절차를 다룹니다.
+- `docs/VALIDATION_PLAN.md`: 프론트엔드 통합 이후 수행할 Validation 로드맵입니다.
 - `VIBECODE_ENTRY.md`: CLI가 프로젝트를 재생성할 때 사용할 템플릿과 정책을 포함합니다.
 
 ## 추가 도구
 - `python tools/preflight.py --entry VIBECODE_ENTRY.md --init-lock-if-missing --check-secrets`
 - `python tools/generate_loot_report.py --period monthly`
 - `python tools/report_worker.py --period monthly --cron "0 9 * * *" --verbose`
+- `alembic upgrade head`
+
+## 데이터베이스 전환 (SQLite → PostgreSQL)
+1. `.env`에 `GOALER_DATABASE_URL=postgresql+psycopg2://user:password@host:5432/goaler` 등 PostgreSQL 연결 정보를 지정합니다.
+2. `pip install psycopg2-binary` 후 `alembic upgrade head`를 실행하면 최신 스키마가 PostgreSQL에 반영됩니다.
+3. 자세한 절차는 `docs/DB_MIGRATION_PLAN.md`와 `docs/OPERATIONS_SOP.md`를 참고하세요.

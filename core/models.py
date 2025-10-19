@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -21,7 +21,7 @@ class Goal(Base):
     __tablename__ = "goals"
 
     goal_id: Mapped[str] = mapped_column(String, primary_key=True, default=_uuid)
-    user_id: Mapped[str] = mapped_column(String, default="default_user")
+    user_id: Mapped[str] = mapped_column(String, nullable=False)
     title: Mapped[str] = mapped_column(String, nullable=False)
     goal_type: Mapped[str] = mapped_column(String, default="ONE_TIME")
     motivation: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -45,7 +45,7 @@ class BossStage(Base):
 
     boss_id: Mapped[str] = mapped_column(String, primary_key=True, default=_uuid)
     goal_id: Mapped[str] = mapped_column(
-        ForeignKey("goals.goal_id", ondelete="CASCADE"), nullable=False
+        ForeignKey("goals.goal_id", ondelete="CASCADE"), nullable=False, index=True
     )
     title: Mapped[str] = mapped_column(String, nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -65,7 +65,7 @@ class Quest(Base):
 
     quest_id: Mapped[str] = mapped_column(String, primary_key=True, default=_uuid)
     goal_id: Mapped[str] = mapped_column(
-        ForeignKey("goals.goal_id", ondelete="CASCADE"), nullable=False
+        ForeignKey("goals.goal_id", ondelete="CASCADE"), nullable=False, index=True
     )
     title: Mapped[str] = mapped_column(String, nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -93,7 +93,7 @@ class QuestLog(Base):
 
     log_id: Mapped[str] = mapped_column(String, primary_key=True, default=_uuid)
     quest_id: Mapped[str] = mapped_column(
-        ForeignKey("quests.quest_id", ondelete="CASCADE"), nullable=False
+        ForeignKey("quests.quest_id", ondelete="CASCADE"), nullable=False, index=True
     )
     goal_id: Mapped[str] = mapped_column(
         ForeignKey("goals.goal_id", ondelete="CASCADE"), nullable=False
@@ -161,6 +161,35 @@ class Reminder(Base):
     goal: Mapped[Goal] = relationship("Goal", back_populates="reminders")
 
 
+class LLMUsageLedger(Base):
+    __tablename__ = "llm_usage_ledger"
+
+    entry_id: Mapped[str] = mapped_column(String, primary_key=True, default=_uuid)
+    user_id: Mapped[str] = mapped_column(String, nullable=False)
+    conversation_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    model: Mapped[str | None] = mapped_column(String, nullable=True)
+    prompt_tokens: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    completion_tokens: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    total_tokens: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+
+
+class LLMUsageDaily(Base):
+    __tablename__ = "llm_daily_usage"
+
+    day: Mapped[date] = mapped_column(Date, primary_key=True)
+    user_id: Mapped[str] = mapped_column(String, primary_key=True)
+    prompt_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    completion_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    total_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    request_count: Mapped[int] = mapped_column(Integer, default=0)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+
+
 __all__ = [
     "Base",
     "Goal",
@@ -170,4 +199,6 @@ __all__ = [
     "UserPreference",
     "PlayerProgress",
     "Reminder",
+    "LLMUsageLedger",
+    "LLMUsageDaily",
 ]

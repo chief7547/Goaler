@@ -17,6 +17,7 @@ from sqlalchemy import select
 from core.storage import SQLAlchemyStorage, create_session
 from core.models import BossStage, Goal, QuestLog
 from core.coach import REPORT_SUMMARY_PROMPT
+from core.llm_limits import LLMQuotaManager, LLMRateLimitError
 
 if TYPE_CHECKING:  # pragma: no cover - typing aid only
     from openai import OpenAI as OpenAIClient
@@ -151,7 +152,13 @@ def _build_table(header: list[str], rows: list[list[str]]) -> str:
     return "\n".join(lines)
 
 
-def render_report(summary: dict[str, Any]) -> str:
+def render_report(
+    summary: dict[str, Any],
+    *,
+    quota_manager: LLMQuotaManager | None = None,
+    quota_user: str = "system_worker",
+    growth_story: str | None = None,
+) -> str:
     period_label = summary["period"].title()
     loot_counts: Counter = summary["loot_counts"]
     energy_counts: Counter = summary["energy_counts"]
@@ -188,7 +195,12 @@ def render_report(summary: dict[str, Any]) -> str:
     else:
         usage_text = "최근 기간 동안 LLM 사용 기록이 없습니다."
 
-    growth_story = compose_growth_story(summary)
+    if growth_story is None:
+        growth_story = compose_growth_story(
+            summary,
+            quota_manager=quota_manager,
+            quota_user=quota_user,
+        )
 
     lines = [
         f"# {period_label} Loot Chronicle — {summary['user_label']}",
@@ -230,7 +242,11 @@ def write_report(content: str, summary: dict[str, Any], output_dir: Path) -> Pat
     return path
 
 
-def compose_growth_story(summary: dict[str, Any]) -> str:
+def compose_growth_story(
+    summary: dict[str, Any],
+    quota_manager: LLMQuotaManager | None = None,
+    quota_user: str = "system_worker",
+) -> str:
     """Compose a narrative paragraph summarising the period using the LLM prompt."""
 
     highlights = summary.get("recent_quotes") or []
@@ -243,6 +259,14 @@ def compose_growth_story(summary: dict[str, Any]) -> str:
         "boss_in_progress": summary.get("boss_in_progress"),
         "boss_next": summary.get("boss_next"),
     }
+
+    if quota_manager is not None:
+        try:
+            quota_manager.enforce_limit(quota_user)
+        except LLMRateLimitError:
+            return (
+                "LLM 사용 한도에 도달했어요. 이번 리포트는 다음 주기에 다시 생성할게요."
+            )
 
     if _should_use_llm():  # pragma: no cover - requires network credentials
         try:
@@ -261,6 +285,14 @@ def compose_growth_story(summary: dict[str, Any]) -> str:
                 ],
             )
             text = response.output_text.strip()
+            if quota_manager is not None:
+                usage = _usage_to_dict(getattr(response, "usage", None))
+                quota_manager.record_usage(
+                    user_id=quota_user,
+                    conversation_id=str(summary.get("period")),
+                    model=os.getenv("LOOT_REPORT_SUMMARY_MODEL", "gpt-5-mini"),
+                    usage=usage,
+                )
             if text:
                 return text
         except Exception:
@@ -276,6 +308,18 @@ def compose_growth_story(summary: dict[str, Any]) -> str:
         f"{excerpt} 같은 순간이 이번 여정을 빛나게 했어요. "
         "다음 모험에서도 이 감각을 살려 한 단계 더 도약해볼까요?"
     )
+
+
+def _usage_to_dict(usage_obj: object) -> dict | None:
+    if usage_obj is None:
+        return None
+    for attr in ("to_dict", "model_dump", "dict"):
+        method = getattr(usage_obj, attr, None)
+        if callable(method):
+            return method()
+    if isinstance(usage_obj, dict):
+        return usage_obj
+    return getattr(usage_obj, "__dict__", None)
 
 
 def _should_use_llm() -> bool:

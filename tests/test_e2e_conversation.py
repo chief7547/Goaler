@@ -10,6 +10,8 @@ from types import SimpleNamespace
 
 import pytest
 
+from core.llm_limits import LLMRateLimitError
+
 
 class TestE2EConversation(unittest.TestCase):
     """Process-level smoke test that exercises the default mock loop."""
@@ -126,16 +128,21 @@ def test_tool_call_driven_goal_flow(monkeypatch, capsys):
 
         last_instance = None
 
-        def __init__(self):
+        def __init__(self):  # noqa: D401 - simple stub
             self.state = {}
             self.calls: list[tuple] = []
             FakeGoalSettingAgent.last_instance = self
+            self.state_manager = SimpleNamespace(get_state=self._get_state)
 
-        def create_goal(self, conversation_id: str, title: str):
+        def _get_state(self, conversation_id: str):
+            return self.state.get(conversation_id)
+
+        def create_goal(self, conversation_id: str, title: str, user_id: str | None = None):
             self.state[conversation_id] = {
                 "goal_title": title,
                 "metrics": [],
                 "motivation": None,
+                "user_id": user_id or "test-user",
             }
             self.calls.append(("create_goal", conversation_id, title))
             return self.state[conversation_id]
@@ -206,6 +213,15 @@ def test_tool_call_driven_goal_flow(monkeypatch, capsys):
             return {"status": "ok", "log": payload}
 
     monkeypatch.setattr(app, "GoalSettingAgent", FakeGoalSettingAgent)
+
+    class FakeQuota:
+        def enforce_limit(self, user_id: str) -> None:  # noqa: D401
+            return
+
+        def record_usage(self, **_: dict) -> None:  # noqa: D401
+            return
+
+    monkeypatch.setattr(app, "LLMQuotaManager", lambda: FakeQuota())
 
     class FakeOpenAI:
         """Minimal OpenAI stub that replays scripted responses."""
@@ -325,6 +341,92 @@ def test_tool_call_driven_goal_flow(monkeypatch, capsys):
     assert final_state["goal_title"] == "체중 감량 목표"
     assert len(final_state["metrics"]) == 1
     assert final_state["motivation"] == "건강을 위해서예요."
+
+
+def test_quota_limit_message(monkeypatch, capsys):
+    """Ensures the conversation surfaces quota block messages without API calls."""
+
+    monkeypatch.syspath_prepend(os.getcwd())
+
+    import app
+
+    monkeypatch.setenv("GOALER_USE_MOCK", "false")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+
+    class PassiveAgent:
+        def __init__(self):
+            self.state_manager = SimpleNamespace(get_state=lambda _cid: {})
+            self.calls = []
+
+        def create_goal(self, **kwargs):  # noqa: D401 - stub
+            assert kwargs.get("user_id") is not None
+            return {}
+
+        def add_metric(self, **_kwargs):  # noqa: D401 - stub
+            return {}
+
+        def set_motivation(self, **_kwargs):  # noqa: D401 - stub
+            return {}
+
+        def finalize_goal(self, **_kwargs):  # noqa: D401 - stub
+            return {}
+
+        def define_boss_stages(self, **_kwargs):  # noqa: D401 - stub
+            return {}
+
+        def propose_weekly_plan(self, **_kwargs):  # noqa: D401 - stub
+            return {}
+
+        def propose_daily_tasks(self, **_kwargs):  # noqa: D401 - stub
+            return {}
+
+        def choose_quest(self, **_kwargs):  # noqa: D401 - stub
+            return {}
+
+        def propose_quests(self, **_kwargs):  # noqa: D401 - stub
+            return {}
+
+        def log_quest_outcome(self, **_kwargs):  # noqa: D401 - stub
+            return {}
+
+    class SentinelQuota:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def enforce_limit(self, user_id: str) -> None:  # noqa: D401 - simple stub
+            self.calls += 1
+            raise LLMRateLimitError("오늘은 충분히 쉰 뒤 다시 이어가요.")
+
+        def record_usage(self, **_kwargs) -> None:  # noqa: D401 - not expected to run
+            pytest.fail("record_usage should not run when quota blocks upfront")
+
+    quota = SentinelQuota()
+
+    class DummyOpenAI:
+        def __init__(self, api_key: str):  # noqa: D401 - stub keeps signature
+            self.api_key = api_key
+            self.chat = SimpleNamespace(
+                completions=SimpleNamespace(
+                    create=lambda **_kwargs: pytest.fail("API should not be invoked"),
+                )
+            )
+
+    monkeypatch.setattr(app, "GoalSettingAgent", PassiveAgent)
+    monkeypatch.setattr(app, "LLMQuotaManager", lambda: quota)
+    monkeypatch.setattr(app, "OpenAI", DummyOpenAI)
+
+    inputs = iter(["한도 테스트", "exit"])
+
+    def fake_input(_prompt: str) -> str:
+        return next(inputs, "exit")
+
+    monkeypatch.setattr("builtins.input", fake_input)
+
+    app.run_conversation()
+
+    output = capsys.readouterr().out
+    assert "충분히 쉰 뒤 다시 이어가요" in output
+    assert quota.calls == 1
 
 
 if __name__ == "__main__":
