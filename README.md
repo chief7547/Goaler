@@ -78,6 +78,7 @@ PYTHONPATH=. pytest
 - `docs/LLM_USAGE_GUIDE.md`: LLM 모델 사용 전략과 비용 모니터링 지침입니다.
 - `docs/ALERT_TEMPLATES.md`: 채널별 알림/경보 메시지 템플릿 모음입니다.
 - `docs/OPERATIONS_SOP.md`: 런칭 후 운영 시나리오와 장애 대응 절차를 다룹니다.
+- `docs/VALIDATION_PLAN.md`: 프론트엔드 통합 이후 수행할 Validation 로드맵입니다.
 - `VIBECODE_ENTRY.md`: CLI가 프로젝트를 재생성할 때 사용할 템플릿과 정책을 포함합니다.
 
 ## 추가 도구
