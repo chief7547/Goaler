@@ -126,10 +126,8 @@ def _run_mock_conversation():
             goal_created = True
             continue
 
-        print(
-            "Goaler: 좋아요! 추가로 기록하고 싶은 내용이 있다면 계속 말씀해주세요. 마치려면 'exit'를 입력하세요.",
-            flush=True,
-        )
+        reply = agent.compose_coach_reply(conversation_id)
+        print(f"Goaler: {reply}", flush=True)
 
 
 def _run_openai_conversation():

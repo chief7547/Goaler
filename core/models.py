@@ -21,6 +21,7 @@ class Goal(Base):
     __tablename__ = "goals"
 
     goal_id: Mapped[str] = mapped_column(String, primary_key=True, default=_uuid)
+    user_id: Mapped[str] = mapped_column(String, default="default_user")
     title: Mapped[str] = mapped_column(String, nullable=False)
     goal_type: Mapped[str] = mapped_column(String, default="ONE_TIME")
     motivation: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -33,6 +34,9 @@ class Goal(Base):
     )
     quests: Mapped[list["Quest"]] = relationship(
         "Quest", cascade="all, delete-orphan", back_populates="goal"
+    )
+    reminders: Mapped[list["Reminder"]] = relationship(
+        "Reminder", cascade="all, delete-orphan", back_populates="goal"
     )
 
 
@@ -107,4 +111,63 @@ class QuestLog(Base):
     quest: Mapped[Quest] = relationship("Quest", back_populates="logs")
 
 
-__all__ = ["Base", "Goal", "BossStage", "Quest", "QuestLog"]
+class UserPreference(Base):
+    __tablename__ = "user_preferences"
+
+    user_id: Mapped[str] = mapped_column(String, primary_key=True)
+    challenge_appetite: Mapped[str] = mapped_column(String, default="MEDIUM")
+    theme_preference: Mapped[str] = mapped_column(String, default="GAME")
+    onboarding_stage: Mapped[str] = mapped_column(
+        String, default="STAGE_0_ONBOARDING"
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+
+
+class PlayerProgress(Base):
+    __tablename__ = "player_progress"
+
+    user_id: Mapped[str] = mapped_column(String, primary_key=True)
+    focus_goal_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    stage_label: Mapped[str] = mapped_column(
+        String, default="STAGE_0_ONBOARDING"
+    )
+    level: Mapped[int] = mapped_column(Integer, default=1)
+    experience_points: Mapped[int] = mapped_column(Integer, default=0)
+    streak_weeks: Mapped[int] = mapped_column(Integer, default=0)
+    last_reflection_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+
+
+class Reminder(Base):
+    __tablename__ = "reminders"
+
+    reminder_id: Mapped[str] = mapped_column(String, primary_key=True, default=_uuid)
+    goal_id: Mapped[str] = mapped_column(
+        ForeignKey("goals.goal_id", ondelete="CASCADE"), nullable=False
+    )
+    channel: Mapped[str] = mapped_column(String, default="slack")
+    frequency: Mapped[str] = mapped_column(String, default="daily")
+    next_run_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    preferred_time: Mapped[str | None] = mapped_column(String, nullable=True)
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+    goal: Mapped[Goal] = relationship("Goal", back_populates="reminders")
+
+
+__all__ = [
+    "Base",
+    "Goal",
+    "BossStage",
+    "Quest",
+    "QuestLog",
+    "UserPreference",
+    "PlayerProgress",
+    "Reminder",
+]

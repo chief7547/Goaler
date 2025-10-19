@@ -35,8 +35,9 @@
   - GitHub Actions 배치 워크플로우(`.github/workflows/loot_report.yml`)에 nightly 크론을 설정하고,
     실행 시 mock DB 또는 준비된 샘플 데이터를 사용
 - 운영 단계
-  - Celery/APSscheduler 워커에서 실행
-  - 환경 변수: `LOOT_REPORT_OUTPUT_DIR`, `LOOT_REPORT_NOTIFY_SLACK_WEBHOOK`
+  - `tools/report_worker.py`를 APScheduler 기반 워커로 실행 (`python tools/report_worker.py --period monthly --cron "0 9 * * *"`).
+  - 환경 변수: `GOALER_DATABASE_URL`, `SLACK_BOT_TOKEN`, `SLACK_CHANNEL` (채널 ID 또는 `#채널명`, 봇은 사전에 해당 채널에 초대되어 있어야 함, 실패 시 로그에서 안내)
+  - 워커 로그는 `logs/report_worker.log`에 축적되어 실패/성공 내역을 감리한다. (필요 시 `--verbose`로 표준 출력 병행)
 
 ## 5. 오류 처리 & 재시도
 - 데이터 누락 시 기본 메시지 (“이번 달에는 전리품이 없었어요. 다음 달에 함께 채워봐요.”)

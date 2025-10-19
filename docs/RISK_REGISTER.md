@@ -5,9 +5,10 @@
 ## 1. 리스크 목록 (초안)
 | ID | 리스크 설명 | 영향도 (Low/Medium/High) | 발생 가능성 | 감지 방법 | 완화/대응 계획 | 상태 |
 | --- | --- | --- | --- | --- | --- | --- |
-| R-001 | Slack 리마인더 미전송 또는 중복 전송으로 사용자 신뢰 저하 | Medium | Medium | Slack 응답 로그, 모니터링 알람 | 전송 결과 로깅 + 재시도 로직, 주간 리마인더 테스트 | Open |
+| R-001 | Slack 리마인더 미전송 또는 중복 전송으로 사용자 신뢰 저하 | Medium | Medium | Slack 응답 로그, 모니터링 알람 | 전송 결과 로깅 + 재시도 로직, 주간 리마인더 테스트 (`docs/ALERT_TEMPLATES.md`) | Monitoring |
 | R-002 | 퀘스트/회고 데이터 손실로 동기부여 루프 붕괴 | High | Low | DB 백업 로그, 주간 검증 | SQLite 자동 백업 + 주간 오프사이트 백업, 복원 시나리오 문서화 | Open |
 | R-003 | LLM이 과도한 퀘스트를 제안해 사용자 과부하 유발 | Medium | Medium | 사용자 피드백, 챗봇 대화 모니터링 | SDT 기반 난이도 가이드 적용, 챗봇이 "많으면 줄이자" 되묻게 설계 | Open |
+| R-004 | APScheduler 워커 중단으로 리포트/알림 누락 | Medium | Low | `logs/report_worker.log` 이상 여부 | `docs/OPERATIONS_SOP.md` 절차에 따라 재기동, 실패 시 Slack 경보 발송 | Open |
 
 ## 2. 모니터링 및 백업 전략 (Q18)
 - 로그/모니터링 도구: Slack Webhook 응답 로그 + Sentry(알림 실패), DB 백업 자동화 로그

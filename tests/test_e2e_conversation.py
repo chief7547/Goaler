@@ -27,6 +27,7 @@ class TestE2EConversation(unittest.TestCase):
 
         env = os.environ.copy()
         env["PYTHONPATH"] = "."
+        env["GOALER_DATABASE_URL"] = "sqlite:///:memory:"
 
         process = subprocess.Popen(
             ["python", "-u", "app.py"],
