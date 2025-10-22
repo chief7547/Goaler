@@ -71,36 +71,42 @@ templates:
 optional_metrics:
   metric_categories:
     - category: "운동·건강"
+      auto_recommend: true
       examples:
         - name: "주당 총 달린 거리"
           unit: "km"
         - name: "10km 달리기 기록"
           unit: "분"
     - category: "비즈니스·수익"
+      auto_recommend: true
       examples:
         - name: "월 매출"
           unit: "만원"
         - name: "신규 고객 수"
           unit: "명"
     - category: "학습·자격"
+      auto_recommend: false
       examples:
         - name: "주당 학습 시간"
           unit: "시간"
         - name: "모의고사 점수"
           unit: "점"
     - category: "생활 습관·웰빙"
+      auto_recommend: false
       examples:
         - name: "평균 수면 시간"
           unit: "시간"
         - name: "주간 루틴 실행 횟수"
           unit: "회"
     - category: "창작·프로젝트"
+      auto_recommend: true
       examples:
         - name: "주간 작업 시간"
           unit: "시간"
         - name: "프로토타입 업데이트 횟수"
           unit: "회"
     - category: "재무·투자"
+      auto_recommend: true
       examples:
         - name: "월 저축액"
           unit: "만원"

@@ -2,33 +2,57 @@
 
 from __future__ import annotations
 
+import json
 import os
 import uuid
 from datetime import datetime, timezone
 from typing import Iterable
 
-from sqlalchemy import create_engine, select
+from sqlalchemy import create_engine, select, text, func, delete
 from sqlalchemy.orm import Session, sessionmaker
 
 from .models import (
     Base,
     BossStage,
+    ConversationLog,
+    ConversationState,
+    ConversationSummary,
     Goal,
+    Metric,
     PlayerProgress,
     Quest,
     QuestLog,
     Reminder,
     UserPreference,
 )
+from .privacy import sanitize_note
 
 
 def _tags_to_string(tags: Iterable[str] | None) -> str | None:
     if not tags:
         return None
-    return ",".join(tags)
+    values = [entry for entry in tags if entry]
+    if not values:
+        return None
+    return ",".join(values)
 
 
 def _tags_from_string(raw: str | None) -> list[str]:
+    if not raw:
+        return []
+    return [entry for entry in raw.split(",") if entry]
+
+
+def _list_to_string(items: Iterable[str] | None) -> str | None:
+    if items is None:
+        return None
+    values = [item for item in items if item]
+    if not values:
+        return None
+    return ",".join(values)
+
+
+def _string_to_list(raw: str | None) -> list[str]:
     if not raw:
         return []
     return [entry for entry in raw.split(",") if entry]
@@ -40,6 +64,18 @@ def _coerce_datetime(value: datetime | str) -> datetime:
     if isinstance(value, str):
         return datetime.fromisoformat(value)
     raise TypeError("occurred_at must be datetime or ISO formatted string")
+
+
+def _coerce_optional_datetime(value: datetime | str | None) -> datetime | None:
+    if value is None:
+        return None
+    return _coerce_datetime(value)
+
+
+def _json_default(value):  # pragma: no cover - defensive serializer
+    if isinstance(value, datetime):
+        return value.isoformat()
+    raise TypeError(f"Object of type {type(value).__name__} is not JSON serializable")
 
 
 class SQLAlchemyStorage:
@@ -59,6 +95,9 @@ class SQLAlchemyStorage:
             goal_type=payload.get("goal_type", "ONE_TIME"),
             motivation=payload.get("motivation"),
             user_id=payload["user_id"],
+            conversation_id=payload.get("conversation_id"),
+            deadline=_coerce_optional_datetime(payload.get("deadline")),
+            status=payload.get("status", "IN_PROGRESS"),
         )
         self.session.add(goal)
         self.session.commit()
@@ -71,6 +110,28 @@ class SQLAlchemyStorage:
             return None
         return self._goal_to_dict(goal)
 
+    def update_goal(self, goal_id: str, payload: dict) -> dict | None:
+        goal = self.session.get(Goal, goal_id)
+        if goal is None:
+            return None
+        for field in (
+            "title",
+            "goal_type",
+            "motivation",
+            "deadline",
+            "status",
+            "conversation_id",
+            "completed_at",
+        ):
+            if field in payload:
+                if field in {"deadline", "completed_at"}:
+                    setattr(goal, field, _coerce_optional_datetime(payload[field]))
+                else:
+                    setattr(goal, field, payload[field])
+        self.session.commit()
+        self.session.refresh(goal)
+        return self._goal_to_dict(goal)
+
     def _goal_to_dict(self, goal: Goal) -> dict:
         return {
             "goal_id": goal.goal_id,
@@ -78,6 +139,14 @@ class SQLAlchemyStorage:
             "title": goal.title,
             "goal_type": goal.goal_type,
             "motivation": goal.motivation,
+            "conversation_id": goal.conversation_id,
+            "deadline": goal.deadline.isoformat() if goal.deadline else None,
+            "status": goal.status,
+            "created_at": goal.created_at.isoformat(),
+            "updated_at": goal.updated_at.isoformat() if goal.updated_at else None,
+            "completed_at": goal.completed_at.isoformat()
+            if goal.completed_at
+            else None,
         }
 
     # ------------------------------------------------------------------
@@ -92,6 +161,10 @@ class SQLAlchemyStorage:
             "challenge_appetite": record.challenge_appetite,
             "theme_preference": record.theme_preference,
             "onboarding_stage": record.onboarding_stage,
+            "personality_type": record.personality_type,
+            "preferred_playstyle": record.preferred_playstyle,
+            "calm_time_window": _string_to_list(record.calm_time_window),
+            "disliked_patterns": _string_to_list(record.disliked_patterns),
         }
 
     def save_user_preferences(self, payload: dict) -> dict:
@@ -104,6 +177,10 @@ class SQLAlchemyStorage:
                 challenge_appetite=payload.get("challenge_appetite", "MEDIUM"),
                 theme_preference=payload.get("theme_preference", "GAME"),
                 onboarding_stage=payload.get("onboarding_stage", "STAGE_0_ONBOARDING"),
+                personality_type=payload.get("personality_type"),
+                preferred_playstyle=payload.get("preferred_playstyle"),
+                calm_time_window=_list_to_string(payload.get("calm_time_window")),
+                disliked_patterns=_list_to_string(payload.get("disliked_patterns")),
                 updated_at=timestamp,
             )
             self.session.add(record)
@@ -114,6 +191,14 @@ class SQLAlchemyStorage:
                 record.theme_preference = payload["theme_preference"]
             if "onboarding_stage" in payload:
                 record.onboarding_stage = payload["onboarding_stage"]
+            if "personality_type" in payload:
+                record.personality_type = payload["personality_type"]
+            if "preferred_playstyle" in payload:
+                record.preferred_playstyle = payload["preferred_playstyle"]
+            if "calm_time_window" in payload:
+                record.calm_time_window = _list_to_string(payload.get("calm_time_window"))
+            if "disliked_patterns" in payload:
+                record.disliked_patterns = _list_to_string(payload.get("disliked_patterns"))
             record.updated_at = timestamp
         self.session.commit()
         self.session.refresh(record)
@@ -122,6 +207,10 @@ class SQLAlchemyStorage:
             "challenge_appetite": record.challenge_appetite,
             "theme_preference": record.theme_preference,
             "onboarding_stage": record.onboarding_stage,
+            "personality_type": record.personality_type,
+            "preferred_playstyle": record.preferred_playstyle,
+            "calm_time_window": _string_to_list(record.calm_time_window),
+            "disliked_patterns": _string_to_list(record.disliked_patterns),
         }
 
     # ------------------------------------------------------------------
@@ -182,6 +271,99 @@ class SQLAlchemyStorage:
             if record.last_reflection_at
             else None,
             "updated_at": record.updated_at.isoformat(),
+        }
+
+    # ------------------------------------------------------------------
+    # Conversation state snapshots
+    # ------------------------------------------------------------------
+    def save_conversation_state(
+        self,
+        conversation_id: str,
+        state: dict,
+        *,
+        user_id: str | None = None,
+        status: str = "ACTIVE",
+    ) -> dict:
+        record = self.session.get(ConversationState, conversation_id)
+        timestamp = datetime.now(timezone.utc)
+        if record is None:
+            record = ConversationState(
+                conversation_id=conversation_id,
+                user_id=user_id,
+                status=status,
+                state_blob=json.dumps(state, ensure_ascii=False, default=_json_default),
+                created_at=timestamp,
+                updated_at=timestamp,
+            )
+            self.session.add(record)
+        else:
+            if user_id is not None:
+                record.user_id = user_id
+            record.status = status
+            record.state_blob = json.dumps(state, ensure_ascii=False, default=_json_default)
+            record.updated_at = timestamp
+        self.session.commit()
+        self.session.refresh(record)
+        return self._conversation_state_to_dict(record)
+
+    def get_conversation_state(self, conversation_id: str) -> dict | None:
+        record = self.session.get(ConversationState, conversation_id)
+        if record is None:
+            return None
+        return self._conversation_state_to_dict(record)
+
+    def delete_conversation_state(self, conversation_id: str) -> None:
+        record = self.session.get(ConversationState, conversation_id)
+        if record is None:
+            return
+        self.session.delete(record)
+        self.session.commit()
+
+    def _conversation_state_to_dict(self, record: ConversationState) -> dict:
+        return {
+            "conversation_id": record.conversation_id,
+            "user_id": record.user_id,
+            "status": record.status,
+            "state": json.loads(record.state_blob) if record.state_blob else None,
+            "created_at": record.created_at.isoformat(),
+            "updated_at": record.updated_at.isoformat() if record.updated_at else None,
+        }
+
+    # ------------------------------------------------------------------
+    # Metrics
+    # ------------------------------------------------------------------
+    def create_metric(self, goal_id: str, payload: dict) -> dict:
+        metric = Metric(
+            goal_id=goal_id,
+            metric_name=payload["metric_name"],
+            metric_type=payload.get("metric_type", "INCREMENTAL"),
+            target_value=payload.get("target_value"),
+            unit=payload.get("unit"),
+            initial_value=payload.get("initial_value"),
+            progress=payload.get("progress"),
+        )
+        self.session.add(metric)
+        self.session.commit()
+        self.session.refresh(metric)
+        return self._metric_to_dict(metric)
+
+    def list_metrics(self, goal_id: str) -> list[dict]:
+        stmt = select(Metric).where(Metric.goal_id == goal_id).order_by(Metric.created_at)
+        metrics = self.session.scalars(stmt).all()
+        return [self._metric_to_dict(metric) for metric in metrics]
+
+    def _metric_to_dict(self, metric: Metric) -> dict:
+        return {
+            "metric_id": metric.metric_id,
+            "goal_id": metric.goal_id,
+            "metric_name": metric.metric_name,
+            "metric_type": metric.metric_type,
+            "target_value": metric.target_value,
+            "unit": metric.unit,
+            "initial_value": metric.initial_value,
+            "progress": metric.progress,
+            "created_at": metric.created_at.isoformat(),
+            "updated_at": metric.updated_at.isoformat(),
         }
 
     # ------------------------------------------------------------------
@@ -261,6 +443,8 @@ class SQLAlchemyStorage:
             "variation_tags": _tags_from_string(quest.variation_tags),
             "is_custom": quest.is_custom,
             "origin_prompt_hash": quest.origin_prompt_hash,
+            "created_at": quest.created_at.isoformat(),
+            "updated_at": quest.updated_at.isoformat(),
         }
 
     # ------------------------------------------------------------------
@@ -270,14 +454,13 @@ class SQLAlchemyStorage:
         log = QuestLog(
             quest_id=payload["quest_id"],
             goal_id=payload["goal_id"],
-            occurred_at=_coerce_datetime(payload["occurred_at"]),
+            occurred_at=_coerce_datetime(payload.get("occurred_at", datetime.now(timezone.utc))),
             outcome=payload["outcome"],
             perceived_difficulty=payload.get("perceived_difficulty"),
             energy_status=payload.get("energy_status"),
             loot_type=payload.get("loot_type"),
-            mood_note=payload.get("mood_note"),
+            mood_note=sanitize_note(payload.get("mood_note")),
             llm_variation_seed=payload.get("llm_variation_seed"),
-            log_id=payload.get("log_id", str(uuid.uuid4())),
         )
         self.session.add(log)
         self.session.commit()
@@ -306,6 +489,107 @@ class SQLAlchemyStorage:
             "loot_type": log.loot_type,
             "mood_note": log.mood_note,
             "llm_variation_seed": log.llm_variation_seed,
+            "created_at": log.created_at.isoformat(),
+        }
+
+    # ------------------------------------------------------------------
+    # Conversation history
+    # ------------------------------------------------------------------
+    def create_conversation_log(self, payload: dict) -> dict:
+        log = ConversationLog(
+            conversation_id=payload["conversation_id"],
+            goal_id=payload.get("goal_id"),
+            role=payload["role"],
+            content=payload["content"],
+            token_count=payload.get("token_count"),
+        )
+        self.session.add(log)
+        self.session.commit()
+        self.session.refresh(log)
+        return self._conversation_log_to_dict(log)
+
+    def list_conversation_logs(self, conversation_id: str, limit: int = 50) -> list[dict]:
+        stmt = (
+            select(ConversationLog)
+            .where(ConversationLog.conversation_id == conversation_id)
+            .order_by(ConversationLog.created_at.desc())
+            .limit(limit)
+        )
+        rows = self.session.scalars(stmt).all()
+        return [self._conversation_log_to_dict(row) for row in rows]
+
+    def count_conversation_logs(self, conversation_id: str) -> int:
+        stmt = (
+            select(func.count())
+            .select_from(ConversationLog)
+            .where(ConversationLog.conversation_id == conversation_id)
+        )
+        result = self.session.execute(stmt).scalar()
+        return int(result or 0)
+
+    def trim_conversation_logs(self, conversation_id: str, keep_latest: int = 10) -> int:
+        if keep_latest < 0:
+            keep_latest = 0
+        keep_stmt = (
+            select(ConversationLog.log_id)
+            .where(ConversationLog.conversation_id == conversation_id)
+            .order_by(ConversationLog.created_at.desc(), ConversationLog.log_id.desc())
+            .limit(keep_latest)
+        )
+        ids_to_keep = [row[0] for row in self.session.execute(keep_stmt)]
+
+        delete_stmt = delete(ConversationLog).where(
+            ConversationLog.conversation_id == conversation_id
+        )
+        if ids_to_keep:
+            delete_stmt = delete_stmt.where(~ConversationLog.log_id.in_(ids_to_keep))
+
+        result = self.session.execute(delete_stmt)
+        self.session.commit()
+        return int(result.rowcount or 0)
+
+    def create_conversation_summary(self, payload: dict) -> dict:
+        summary = ConversationSummary(
+            conversation_id=payload["conversation_id"],
+            period_start=_coerce_optional_datetime(payload.get("period_start")),
+            period_end=_coerce_optional_datetime(payload.get("period_end")),
+            summary_text=payload["summary_text"],
+        )
+        self.session.add(summary)
+        self.session.commit()
+        self.session.refresh(summary)
+        return self._conversation_summary_to_dict(summary)
+
+    def list_conversation_summaries(self, conversation_id: str) -> list[dict]:
+        stmt = (
+            select(ConversationSummary)
+            .where(ConversationSummary.conversation_id == conversation_id)
+            .order_by(ConversationSummary.created_at.desc())
+        )
+        rows = self.session.scalars(stmt).all()
+        return [self._conversation_summary_to_dict(row) for row in rows]
+
+    def _conversation_log_to_dict(self, log: ConversationLog) -> dict:
+        return {
+            "log_id": log.log_id,
+            "conversation_id": log.conversation_id,
+            "goal_id": log.goal_id,
+            "role": log.role,
+            "content": log.content,
+            "token_count": log.token_count,
+            "created_at": log.created_at.isoformat(),
+        }
+
+    def _conversation_summary_to_dict(self, summary: ConversationSummary) -> dict:
+        return {
+            "summary_id": summary.summary_id,
+            "conversation_id": summary.conversation_id,
+            "period_start": summary.period_start.isoformat()
+            if summary.period_start
+            else None,
+            "period_end": summary.period_end.isoformat() if summary.period_end else None,
+            "summary_text": summary.summary_text,
+            "created_at": summary.created_at.isoformat(),
         }
 
     # ------------------------------------------------------------------
@@ -358,6 +642,33 @@ class SQLAlchemyStorage:
             else None,
             "preferred_time": reminder.preferred_time,
             "active": reminder.active,
+            "updated_at": reminder.updated_at.isoformat(),
+        }
+
+    # ------------------------------------------------------------------
+    # Stage progression helpers
+    # ------------------------------------------------------------------
+    def get_stage_counters(self, user_id: str) -> dict[str, int]:
+        stmt = (
+            select(
+                func.count().filter(QuestLog.outcome == "COMPLETED").label("completed"),
+                func.count().filter(QuestLog.loot_type.is_not(None)).label("loot"),
+                func.count().filter(QuestLog.energy_status.is_not(None)).label("energy"),
+            )
+            .select_from(QuestLog)
+            .join(Goal, QuestLog.goal_id == Goal.goal_id)
+            .where(Goal.user_id == user_id)
+        )
+        completed = loot = energy = 0
+        result = self.session.execute(stmt).first()
+        if result is not None:
+            completed = int(result.completed or 0)
+            loot = int(result.loot or 0)
+            energy = int(result.energy or 0)
+        return {
+            "completed": completed,
+            "loot": loot,
+            "energy": energy,
         }
 
 
@@ -385,6 +696,7 @@ def create_session_factory(database_url: str | None = None) -> sessionmaker[Sess
 
     if _should_autocreate_schema():
         Base.metadata.create_all(engine)
+        _auto_upgrade_schema(engine)
 
     return sessionmaker(bind=engine, expire_on_commit=False, future=True)
 
@@ -409,6 +721,46 @@ def _as_int_env(name: str) -> int | None:
         return None
     return parsed
 
+
+def _auto_upgrade_schema(engine) -> None:
+    """Apply lightweight in-place migrations for SQLite deployments."""
+
+    if not engine.url.drivername.startswith("sqlite"):
+        return
+
+    with engine.begin() as conn:  # type: ignore[call-arg]
+        def column_exists(table: str, column: str) -> bool:
+            result = conn.execute(text(f"PRAGMA table_info({table})"))
+            return any(row[1] == column for row in result.fetchall())
+
+        def ensure_column(table: str, column: str, ddl: str) -> None:
+            if column_exists(table, column):
+                return
+            conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {ddl}"))
+
+        ensure_column("goals", "conversation_id", "VARCHAR")
+        ensure_column("goals", "deadline", "TIMESTAMP")
+        ensure_column("goals", "status", "VARCHAR DEFAULT 'IN_PROGRESS'")
+        ensure_column("goals", "updated_at", "TIMESTAMP")
+        ensure_column("goals", "completed_at", "TIMESTAMP")
+
+        ensure_column("quests", "updated_at", "TIMESTAMP")
+        ensure_column("quest_logs", "created_at", "TIMESTAMP")
+
+        ensure_column("user_preferences", "personality_type", "VARCHAR")
+        ensure_column("user_preferences", "preferred_playstyle", "VARCHAR")
+        ensure_column("user_preferences", "calm_time_window", "TEXT")
+        ensure_column("user_preferences", "disliked_patterns", "TEXT")
+
+        ensure_column("reminders", "updated_at", "TIMESTAMP")
+
+        # Ensure new tables exist (no-op if already created)
+        Base.metadata.create_all(engine, tables=[
+            Base.metadata.tables["metrics"],
+            Base.metadata.tables["conversation_logs"],
+            Base.metadata.tables["conversation_summaries"],
+            Base.metadata.tables["conversations"],
+        ])
 
 __all__ = [
     "SQLAlchemyStorage",

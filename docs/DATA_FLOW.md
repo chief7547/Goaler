@@ -21,8 +21,10 @@
 
 ### 1.3 대화 로그 및 요약
 - 원시 로그 저장: `conversation_logs`
-- 요약 조건: 토큰 수가 기준을 넘거나 하루가 끝날 때마다 LLM이 요약을 생성
+- 요약 조건: 기본값으로 최근 로그가 40개를 넘으면 자동 요약(`ConversationSummarizer`)을 실행하고, 요약 이후에는 최신 10개 로그만 남깁니다.
 - 요약 저장: `conversation_summaries`
+- 커스터마이징: `GOALER_STATE_REDIS_URL`로 상태를 공유하고, 요약 워커(`ConversationSummarizer`)는 `threshold`, `keep_latest` 값을 인자로 받아 조정할 수 있습니다.
+- 감정 메모(`mood_note`)는 저장 시 `sanitize_note`로 이메일·전화·주민번호 등 민감 정보를 `[민감정보]`로 치환합니다.
 
 ### 1.4 리마인더 발송
 - 트리거: 스케줄러가 `reminders.next_run_at` 확인

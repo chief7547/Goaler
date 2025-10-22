@@ -9,6 +9,7 @@ from typing import Any, Iterable, cast
 
 from .coach import CoachResponder, ToneContext
 from .storage import SQLAlchemyStorage, create_session
+from .templates import load_templates
 from .user_preferences import ContextLoader, UserPreferences
 
 from .state_manager import StateManager
@@ -25,6 +26,15 @@ _STAGE_FEATURE_MATRIX: dict[str, dict[str, bool]] = {
     STAGE_BOSS_PREVIEW: {"loot": True, "energy": True, "boss": True},
     "STAGE_2_ASCENSION": {"loot": True, "energy": True, "boss": True},
     "STAGE_3_SUMMIT": {"loot": True, "energy": True, "boss": True},
+}
+
+_STAGE_ORDER = {
+    STAGE_0: 0,
+    STAGE_LOOT: 1,
+    STAGE_ENERGY: 2,
+    STAGE_BOSS_PREVIEW: 3,
+    "STAGE_2_ASCENSION": 4,
+    "STAGE_3_SUMMIT": 5,
 }
 
 
@@ -119,10 +129,11 @@ class GoalSettingAgent:
         storage: SQLAlchemyStorage | None = None,
         coach_responder: CoachResponder | None = None,
     ) -> None:
-        self.state_manager = StateManager()
         self.storage = storage or SQLAlchemyStorage(create_session())
+        self.state_manager = StateManager(storage=self.storage)
         self.coach_responder = coach_responder or CoachResponder()
         self.context_loader = ContextLoader(self.storage)
+        self.template_library = load_templates()
 
     def create_goal(
         self,
@@ -179,6 +190,10 @@ class GoalSettingAgent:
             "accepted_quests": [],
             "theme_preference": prefs.theme_preference,
             "challenge_appetite": prefs.challenge_appetite,
+            "quest_templates": self.template_library.quest_categories,
+            "metric_templates": self.template_library.metric_categories,
+            "metric_auto_recommendations": self.template_library.auto_recommend_metrics,
+            "metric_validation_rules": self.template_library.validation_rules,
         }
         self.state_manager.new_conversation(conversation_id, initial_state)
         return self.state_manager.get_state(conversation_id)
@@ -200,7 +215,17 @@ class GoalSettingAgent:
             # Nothing to add yet; keep the snapshot so the LLM can recover.
             return current_state
 
-        current_state.setdefault("metrics", []).append(normalized)
+        metric_template = self.template_library.metric_template(
+            normalized.get("metric_name", "")
+        )
+        if metric_template:
+            normalized.setdefault("unit", metric_template.get("unit"))
+        goal_id = current_state.get("goal_id")
+        if goal_id:
+            metric_record = self.storage.create_metric(goal_id, normalized)
+            current_state.setdefault("metrics", []).append(metric_record)
+        else:
+            current_state.setdefault("metrics", []).append(normalized)
         self.state_manager.update_state(conversation_id, current_state)
         return current_state
 
@@ -212,6 +237,9 @@ class GoalSettingAgent:
             return None
 
         current_state["motivation"] = text
+        goal_id = current_state.get("goal_id")
+        if goal_id:
+            self.storage.update_goal(goal_id, {"motivation": text})
         self.state_manager.update_state(conversation_id, current_state)
         return current_state
 
@@ -219,6 +247,20 @@ class GoalSettingAgent:
         """Log the final state and clear the conversation cache."""
 
         final_state = self.state_manager.get_state(conversation_id)
+        goal_id = final_state.get("goal_id") if final_state else None
+        if goal_id:
+            self.storage.update_goal(
+                goal_id,
+                {
+                    "status": "COMPLETED",
+                    "completed_at": datetime.now(timezone.utc),
+                },
+            )
+            if final_state and final_state.get("user_id"):
+                self.storage.update_player_progress(
+                    final_state["user_id"],
+                    {"focus_goal_id": None},
+                )
         print(
             "--- DB: Saving final state for"
             f" {conversation_id} to database: {final_state} ---"
@@ -272,6 +314,7 @@ class GoalSettingAgent:
             existing.append(stage_dict["boss_id"])
             titles[stage_dict["boss_id"]] = stage_dict["title"]
         self.state_manager.update_state(conversation_id, current_state)
+        self._maybe_unlock_boss_preview(conversation_id, current_state)
         return {"status": "ok", "boss_stages": created}
 
     def propose_weekly_plan(
@@ -350,6 +393,8 @@ class GoalSettingAgent:
         if payload.get("mood_note"):
             current_state["last_loot_title"] = payload["mood_note"]
         self.state_manager.update_state(conversation_id, current_state)
+        self._maybe_advance_stage(conversation_id, current_state)
+        self._maybe_flag_boss_adjustment(conversation_id, current_state)
         return {
             "status": "ok",
             "log": log,
@@ -368,6 +413,9 @@ class GoalSettingAgent:
         if state is None:
             return None
         user_id = _resolve_user_id(user_id or state.get("user_id"))
+        current_stage = state.get("onboarding_stage", STAGE_0)
+        if _STAGE_ORDER.get(stage_label, 0) < _STAGE_ORDER.get(current_stage, 0):
+            return state
         self.storage.save_user_preferences(
             {
                 "user_id": user_id,
@@ -405,6 +453,11 @@ class GoalSettingAgent:
             variation = dict(candidate)
             variation.setdefault("reason", "기본 추천 변주")
             variation.setdefault("difficulty_tier", "NORMAL")
+            template = None
+            if variation.get("title"):
+                template = self.template_library.quest_template(variation["title"])
+            if template and not variation.get("description"):
+                variation["description"] = template.get("description")
             variations.append(variation)
 
         current_state = self.state_manager.get_state(conversation_id) or {}
@@ -479,3 +532,71 @@ class GoalSettingAgent:
                 }
             )
         return prefs
+
+    def _maybe_advance_stage(
+        self,
+        conversation_id: str,
+        state: dict[str, Any] | None = None,
+    ) -> None:
+        state = state or self.state_manager.get_state(conversation_id)
+        if not state:
+            return
+        user_id = state.get("user_id")
+        if not user_id:
+            return
+        counters = self.storage.get_stage_counters(user_id)
+        current_stage = state.get("onboarding_stage", STAGE_0)
+        desired_stage = current_stage
+
+        if _STAGE_ORDER.get(current_stage, 0) < _STAGE_ORDER[STAGE_LOOT] and counters[
+            "completed"
+        ] >= 3:
+            desired_stage = STAGE_LOOT
+        if _STAGE_ORDER.get(desired_stage, 0) < _STAGE_ORDER[STAGE_ENERGY] and counters[
+            "loot"
+        ] >= 3:
+            desired_stage = STAGE_ENERGY
+        if _STAGE_ORDER.get(desired_stage, 0) < _STAGE_ORDER[STAGE_BOSS_PREVIEW] and counters[
+            "energy"
+        ] >= 5:
+            desired_stage = STAGE_BOSS_PREVIEW
+
+        if desired_stage != current_stage:
+            self.set_onboarding_stage(
+                conversation_id,
+                desired_stage,
+                user_id=user_id,
+            )
+
+    def _maybe_unlock_boss_preview(
+        self, conversation_id: str, state: dict[str, Any] | None = None
+    ) -> None:
+        state = state or self.state_manager.get_state(conversation_id)
+        if not state:
+            return
+        current_stage = state.get("onboarding_stage", STAGE_0)
+        if _STAGE_ORDER.get(current_stage, 0) >= _STAGE_ORDER[STAGE_BOSS_PREVIEW]:
+            return
+        self.set_onboarding_stage(
+            conversation_id,
+            STAGE_BOSS_PREVIEW,
+            user_id=state.get("user_id"),
+        )
+
+    def _maybe_flag_boss_adjustment(
+        self, conversation_id: str, state: dict[str, Any] | None = None
+    ) -> None:
+        state = state or self.state_manager.get_state(conversation_id)
+        if not state:
+            return
+        goal_id = state.get("goal_id")
+        if not goal_id:
+            return
+        recent_logs = self.storage.list_recent_quest_logs(goal_id, limit=3)
+        if len(recent_logs) < 3:
+            return
+        if not all(entry.get("outcome") and entry["outcome"] != "COMPLETED" for entry in recent_logs):
+            return
+        state["boss_adjustment_needed"] = True
+        state["boss_adjustment_reason"] = "RECENT_FAILURES"
+        self.state_manager.update_state(conversation_id, state)

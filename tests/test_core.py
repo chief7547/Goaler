@@ -6,6 +6,7 @@ import pytest
 
 from core.agent import GoalSettingAgent
 from core.coach import CoachResponder
+from core.state_manager import StateManager
 from core.models import UserPreference
 
 
@@ -39,6 +40,9 @@ def test_create_goal_initialises_state(agent) -> None:
     assert current_state["feature_flags"]["boss"] is False
     assert current_state["theme_preference"] == "GAME"
     assert current_state["user_id"] == ACTIVE_USER
+    assert current_state["quest_templates"]
+    assert current_state["metric_templates"]
+    assert current_state["metric_auto_recommendations"]
 
 
 def test_add_metric_updates_state(agent) -> None:
@@ -61,6 +65,11 @@ def test_add_metric_updates_state(agent) -> None:
     added_metric = current_state["metrics"][0]
     assert added_metric["metric_name"] == "Read books"
     assert added_metric["target_value"] == 10
+    assert "metric_id" in added_metric
+
+    persisted_metrics = agent.storage.list_metrics(current_state["goal_id"])
+    assert len(persisted_metrics) == 1
+    assert persisted_metrics[0]["metric_name"] == "Read books"
 
 
 def test_set_motivation_updates_state(agent) -> None:
@@ -73,16 +82,27 @@ def test_set_motivation_updates_state(agent) -> None:
     assert current_state is not None
     assert current_state["motivation"] == "Improve focus"
 
+    stored_goal = agent.storage.get_goal(current_state["goal_id"])
+    assert stored_goal["motivation"] == "Improve focus"
+
 
 def test_finalize_goal_clears_state(agent) -> None:
     conv_id = "test_conv_123"
     agent.create_goal(conv_id, "Finalize Test")
+    goal_id = agent.state_manager.get_state(conv_id)["goal_id"]
 
     assert agent.state_manager.get_state(conv_id) is not None
 
     agent.finalize_goal(conv_id)
 
     assert agent.state_manager.get_state(conv_id) is None
+
+    stored_goal = agent.storage.get_goal(goal_id)
+    assert stored_goal["status"] == "COMPLETED"
+    assert stored_goal["completed_at"] is not None
+
+    progress = agent.storage.get_player_progress(ACTIVE_USER)
+    assert progress["focus_goal_id"] is None
 
 
 def test_onboarding_context_defaults(agent) -> None:
@@ -194,13 +214,27 @@ def test_propose_quests_after_unlock_returns_variations(agent) -> None:
     agent.state_manager.update_state(conv_id, state)
 
     variations = [
-        {"title": "러닝", "difficulty_tier": "NORMAL"},
+        {"title": "주 3회 러닝 완료", "difficulty_tier": "NORMAL"},
         {"title": "체중 운동", "difficulty_tier": "EASY"},
     ]
     result = agent.propose_quests(conv_id, goal_id, variations)
     assert result["status"] == "ok"
     assert len(result["variations"]) == 2
     assert result["variations"][0]["reason"] == "기본 추천 변주"
+    assert result["variations"][0]["description"]
+
+
+def test_state_manager_persists_to_storage(agent) -> None:
+    conv_id = "persist_conv"
+    agent.create_goal(conv_id, "Persisted Goal")
+
+    first_state = agent.state_manager.get_state(conv_id)
+    assert first_state is not None
+
+    new_manager = StateManager(storage=agent.storage)
+    restored = new_manager.get_state(conv_id)
+    assert restored is not None
+    assert restored["goal_title"] == "Persisted Goal"
 
 
 def test_choose_quest_persists_to_storage(agent, storage) -> None:
@@ -275,6 +309,132 @@ def test_log_quest_outcome_handles_failure(agent, storage) -> None:
     assert fail_log["log"]["outcome"] == "FAILED"
     logs = storage.list_recent_quest_logs(goal_id)
     assert logs[0]["energy_status"] == "NEEDS_POTION"
+
+
+def _create_quest_for_goal(agent: GoalSettingAgent, goal_id: str, title: str = "퀘스트") -> dict:
+    return agent.storage.create_quest(
+        goal_id,
+        {
+            "title": title,
+            "difficulty_tier": "NORMAL",
+        },
+    )
+
+
+def test_onboarding_stage_advances_after_completions(agent) -> None:
+    conv_id = "stage_progress"
+    agent.create_goal(conv_id, "Stage Goal")
+    state = agent.state_manager.get_state(conv_id)
+    goal_id = state["goal_id"]
+    quest = _create_quest_for_goal(agent, goal_id)
+
+    for _ in range(3):
+        agent.log_quest_outcome(
+            conv_id,
+            {
+                "goal_id": goal_id,
+                "quest_id": quest["quest_id"],
+                "outcome": "COMPLETED",
+                "occurred_at": datetime(2025, 1, 1, tzinfo=timezone.utc),
+            },
+        )
+
+    new_state = agent.state_manager.get_state(conv_id)
+    assert new_state["onboarding_stage"] == "STAGE_0_5_LOOT"
+
+
+def test_onboarding_stage_advances_after_loot_and_energy(agent) -> None:
+    conv_id = "stage_loot_energy"
+    agent.create_goal(conv_id, "Stage Goal 2")
+    state = agent.state_manager.get_state(conv_id)
+    goal_id = state["goal_id"]
+    quest = _create_quest_for_goal(agent, goal_id, "전리품 퀘스트")
+
+    # Unlock loot stage
+    for _ in range(3):
+        agent.log_quest_outcome(
+            conv_id,
+            {
+                "goal_id": goal_id,
+                "quest_id": quest["quest_id"],
+                "outcome": "COMPLETED",
+                "occurred_at": datetime(2025, 1, 2, tzinfo=timezone.utc),
+            },
+        )
+
+    # Record loot entries to reach STAGE_1_ENERGY
+    for _ in range(3):
+        agent.log_quest_outcome(
+            conv_id,
+            {
+                "goal_id": goal_id,
+                "quest_id": quest["quest_id"],
+                "outcome": "COMPLETED",
+                "occurred_at": datetime(2025, 1, 3, tzinfo=timezone.utc),
+                "loot_type": "ACHIEVEMENT",
+            },
+        )
+
+    state_after_loot = agent.state_manager.get_state(conv_id)
+    assert state_after_loot["onboarding_stage"] == "STAGE_1_ENERGY"
+
+    # Record energy logs to reach boss preview
+    for _ in range(5):
+        agent.log_quest_outcome(
+            conv_id,
+            {
+                "goal_id": goal_id,
+                "quest_id": quest["quest_id"],
+                "outcome": "COMPLETED",
+                "occurred_at": datetime(2025, 1, 4, tzinfo=timezone.utc),
+                "energy_status": "NEEDS_POTION",
+            },
+        )
+
+    state_after_energy = agent.state_manager.get_state(conv_id)
+    assert state_after_energy["onboarding_stage"] == "STAGE_1_5_BOSS_PREVIEW"
+
+
+def test_defining_boss_stages_unlocks_preview(agent) -> None:
+    conv_id = "stage_boss"
+    agent.create_goal(conv_id, "Stage Goal 3")
+    state = agent.state_manager.get_state(conv_id)
+    goal_id = state["goal_id"]
+
+    agent.define_boss_stages(
+        conv_id,
+        goal_id,
+        [
+            {"title": "첫 보스", "success_criteria": "완료"},
+        ],
+    )
+
+    updated = agent.state_manager.get_state(conv_id)
+    assert updated["onboarding_stage"] == "STAGE_1_5_BOSS_PREVIEW"
+
+
+def test_boss_adjustment_flag_after_failures(agent) -> None:
+    conv_id = "boss_adjust"
+    agent.create_goal(conv_id, "Boss Goal")
+    state = agent.state_manager.get_state(conv_id)
+    goal_id = state["goal_id"]
+    quest = _create_quest_for_goal(agent, goal_id, "보스 준비")
+
+    for _ in range(3):
+        agent.log_quest_outcome(
+            conv_id,
+            {
+                "goal_id": goal_id,
+                "quest_id": quest["quest_id"],
+                "outcome": "FAILED",
+                "occurred_at": datetime(2025, 1, 5, tzinfo=timezone.utc),
+                "perceived_difficulty": "TOO_HARD",
+            },
+        )
+
+    flagged_state = agent.state_manager.get_state(conv_id)
+    assert flagged_state.get("boss_adjustment_needed") is True
+    assert flagged_state.get("boss_adjustment_reason") == "RECENT_FAILURES"
 
 
 def test_compose_coach_reply_uses_context(agent, storage) -> None:
