@@ -23,8 +23,9 @@
 
 - **`core/state_manager.py` (`StateManager`):**
   - 대화가 진행되는 동안 필요한 최소한의 컨텍스트(대화 ID → `goal_id`, 기능 해금 플래그, 미확정 변주 등)를 보관하는 **단기 메모리**입니다.
-  - 모든 영속 데이터(목표, 보스전, 퀘스트, 전리품 로그)는 `core/storage.py`를 통해 데이터베이스에 저장합니다. 즉, DB가 단일 진실 공급원(Single Source of Truth)이고 StateManager는 포인터/캐시만 유지합니다.
-  - 이 원칙에 따라 GoalSettingAgent의 각 메서드는 먼저 Storage로 데이터를 쓰거나 읽고, 필요한 경우에만 StateManager를 업데이트합니다.
+  - 현재 구현은 인메모리 캐시 외에도 Redis(`GOALER_STATE_REDIS_URL`) 혹은 SQLite의 `conversations` 테이블에 스냅샷을 남겨 재시작/다중 프로세스 환경에서도 동일한 상태를 복원할 수 있습니다.
+  - 모든 영속 데이터(목표, 보스전, 퀘스트, 전리품 로그)는 `core/storage.py`를 통해 데이터베이스에 저장하되, StateManager가 갱신될 때마다 영속 스토어에 동기화해 단일 진실 공급원(Single Source of Truth)을 유지합니다.
+  - Stage 해금 로직은 전리품·에너지 기록 횟수를 기반으로 자동으로 평가되며, 기준치는 `docs/ONBOARDING_PLAN.md`에 정의되어 있습니다.
 
 - **`core/llm_prompt.py`:**
   - LLM 에이전트의 행동을 정의하는 **지시문(Instruction)과 도구(Tool) 명세서**입니다.
@@ -153,7 +154,7 @@
 ## 12. 구현 단계 및 테스트 전략
 
 1. **모델 계층 구현**: `core/models.py`에 SQLAlchemy 모델을 정의하고, SQLite 인메모리 환경에서 `goals/quests/quest_logs` 스키마 생성 테스트(`tests/test_models.py`)를 작성합니다.
-2. **저장소 어댑터 구축**: `core/storage.py`에서 컨텍스트 매니저 및 CRUD 메서드를 구현하고, `tests/test_storage.py`로 목표/퀘스트/리마인더 CRUD를 검증합니다. (고급 사용자를 위한 `metrics` CRUD는 선택 테스트로 분리)
+2. **저장소 어댑터 구축**: `core/storage.py`에서 컨텍스트 매니저 및 CRUD 메서드를 구현하고, `tests/test_storage_extensions.py`로 목표/퀘스트/리마인더/메트릭/대화 로그 CRUD를 검증합니다.
 3. **StateManager 통합**: 기존 인메모리 로직을 유지하되, 퀘스트 생성·완료 이벤트를 저장소 어댑터와 연동합니다. 통합 테스트(`tests/test_e2e_conversation.py`)에 DB 백엔드 사용 케이스를 추가합니다.
 4. **요약·알림 워커 설계**: 대화 요약 생성기와 리마인더 스케줄러에 대한 스텁을 만들고, 후속 단계에서 실제 작업자(예: Celery, APScheduler)를 붙일 수 있도록 인터페이스를 정의합니다.
 5. **CI 강화**: DB 관련 테스트는 SQLite 인메모리를 사용하고, 필요 시 PostgreSQL을 Docker 서비스로 추가해 호환성 테스트를 진행합니다.

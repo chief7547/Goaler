@@ -327,6 +327,66 @@
 
 ---
 
+## Phase 7 — Web Frontend MVP
+**목표:** CLI에서 검증된 엔진을 웹 대시보드/챗 UI로 구현하고 QA까지 마친다.
+
+### Inputs
+- `docs/FRONTEND_DESIGN.md`, `docs/UX_FLOW.md`, `docs/UX_CONVO_FLOW.md`, `docs/UX_WIREFRAME_NOTES.md`
+- FastAPI/Flask API 게이트웨이 스펙 (Phase FE-0 산출물)
+- `docs/FX_GUIDE.md` *(애니메이션 사양 문서, FE-6에서 작성)*
+
+### Tasks
+1. **FE-0 API 게이트웨이**  
+   - FastAPI/Flask로 CLI 함수를 `/api/v1/...` REST 엔드포인트로 노출  
+   - 응답 스키마를 TypeScript 타입으로 자동 생성 (OpenAPI → `frontend/src/lib/api/types.ts`)  
+   - Swagger 문서화, Newman/Postman 스모크 테스트
+2. **FE-1 AppShell & Dashboard**  
+   - Next.js App Router로 AppShell 구성 (헤더/사이드바/테마 토글)  
+   - Dashboard 화면: 목표 카드, 오늘의 추천 행동, 체크리스트 표시  
+   - React Query로 `GET /goals`, `GET /quests/today` 데이터 연동
+3. **FE-2 Chat 통합**  
+   - Chat 화면 구현 (대화 로그 + 입력 영역 + 추천 버튼)  
+   - `POST /chat` 호출 → Function call 결과에 따라 React Query 캐시 무효화  
+   - Optimistic update + 지연/오류 대응 UI 구성 (재시도 버튼, 토스트)
+4. **FE-3 Goals & Reports**  
+   - 목표 상세 페이지: 보스 타임라인, 주간 단계, 전리품 보관함  
+   - 리포트 페이지: 월간/주간 조회, LLM 성장 서사, 공유 버튼  
+   - Skeleton 로딩, 에러/빈 상태, 테마 전환 대응
+5. **FE-4 Settings & Reminders**  
+   - 알림 CRUD UI (`GET/POST/PATCH /reminders`) 및 Slack 설정 안내  
+   - 알림 테스트 버튼, 토스트/모달 피드백  
+   - 향후 이메일/SMS 확장을 고려한 폼 구조화
+6. **FE-5 QA & Accessibility**  
+   - Vitest/RTL 단위 테스트, Playwright로 핵심 사용자 플로우 검증  
+   - Storybook 구축 + Chromatic 시각 회귀  
+   - Lighthouse(모바일) LCP<3s, axe-core Critical=0 목표
+7. **FE-6 Progressive FX**  
+   - `docs/FX_GUIDE.md` 작성 (트리거/효과/정리 조건 문서화)  
+   - `src/components/fx/`로 애니메이션 컴포넌트 분리, `prefers-reduced-motion` 반영  
+   - Storybook에서 효과별 스토리와 QA 체크리스트 제공
+
+### Quality Gates
+- API 게이트웨이 Swagger + Newman 스모크 테스트 통과  
+- 대시보드/챗/목표/리포트/알림 5개 화면 Playwright 시나리오 통과  
+- Storybook에 상태/테마별 컴포넌트 문서화, Chromatic 회귀 테스트  
+- 접근성: axe-core Critical 0, 키보드 내비게이션 문제 없음  
+- 퍼포먼스: Lighthouse(모바일) LCP < 3s, TBT < 300ms, CLS < 0.1
+
+### Artifacts
+- `frontend/` 디렉터리 (Next.js 프로젝트) + Storybook  
+- `docs/FRONTEND_DESIGN.md`, `docs/FX_GUIDE.md`  
+- QA 로그 (`reports/frontend_e2e_log.md` 등)  
+- 배포 가이드 (`docs/OPERATIONS_SOP.md` 업데이트)
+
+### Hand-off Checklist
+- [ ] API 게이트웨이와 프런트 타입 정의가 동일 버전(OpenAPI → TS)으로 동기화  
+- [ ] 핵심 화면 5종 Playwright 스크린샷 캡처 및 QA 승인  
+- [ ] Storybook 문서화/Chromatic 회귀 테스트 통과  
+- [ ] `docs/FX_GUIDE.md` 초안 작성, 애니메이션 우선순위 합의  
+- [ ] Vercel/Netlify 프리뷰 + Lighthouse 리포트 공유
+
+---
+
 ## 부록 — 빠른 참조
 - **설계 개요:** `ARCHITECTURE.md`, `docs/PRODUCT_SPEC.md`
 - **데이터/파이프라인:** `DATA_SCHEMA.yaml`, `docs/DATA_FLOW.md`, `docs/ANALYTICS_PLAN.md`

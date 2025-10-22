@@ -5,8 +5,18 @@ from __future__ import annotations
 import uuid
 from datetime import date, datetime, timezone
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import (
+    Boolean,
+    Date,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy.sql import func
 
 
 class Base(DeclarativeBase):
@@ -25,8 +35,19 @@ class Goal(Base):
     title: Mapped[str] = mapped_column(String, nullable=False)
     goal_type: Mapped[str] = mapped_column(String, default="ONE_TIME")
     motivation: Mapped[str | None] = mapped_column(Text, nullable=True)
+    conversation_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    deadline: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    status: Mapped[str] = mapped_column(String, default="IN_PROGRESS")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=func.now()
+    )
+    completed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
     )
 
     boss_stages: Mapped[list["BossStage"]] = relationship(
@@ -37,6 +58,15 @@ class Goal(Base):
     )
     reminders: Mapped[list["Reminder"]] = relationship(
         "Reminder", cascade="all, delete-orphan", back_populates="goal"
+    )
+    metrics: Mapped[list["Metric"]] = relationship(
+        "Metric", cascade="all, delete-orphan", back_populates="goal"
+    )
+    quest_logs: Mapped[list["QuestLog"]] = relationship(
+        "QuestLog", cascade="all, delete-orphan", back_populates="goal"
+    )
+    conversation_logs: Mapped[list["ConversationLog"]] = relationship(
+        "ConversationLog", cascade="all, delete-orphan", back_populates="goal"
     )
 
 
@@ -81,6 +111,9 @@ class Quest(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=func.now()
+    )
 
     goal: Mapped[Goal] = relationship("Goal", back_populates="quests")
     logs: Mapped[list["QuestLog"]] = relationship(
@@ -107,8 +140,85 @@ class QuestLog(Base):
     loot_type: Mapped[str | None] = mapped_column(String, nullable=True)
     mood_note: Mapped[str | None] = mapped_column(Text, nullable=True)
     llm_variation_seed: Mapped[str | None] = mapped_column(String, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
 
     quest: Mapped[Quest] = relationship("Quest", back_populates="logs")
+    goal: Mapped[Goal] = relationship("Goal", back_populates="quest_logs")
+
+
+class Metric(Base):
+    __tablename__ = "metrics"
+
+    metric_id: Mapped[str] = mapped_column(String, primary_key=True, default=_uuid)
+    goal_id: Mapped[str] = mapped_column(
+        ForeignKey("goals.goal_id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    metric_name: Mapped[str] = mapped_column(String, nullable=False)
+    metric_type: Mapped[str] = mapped_column(String, default="INCREMENTAL")
+    target_value: Mapped[float | None] = mapped_column(Float, nullable=True)
+    unit: Mapped[str | None] = mapped_column(String, nullable=True)
+    initial_value: Mapped[float | None] = mapped_column(Float, nullable=True)
+    progress: Mapped[float | None] = mapped_column(Float, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=func.now()
+    )
+
+    goal: Mapped[Goal] = relationship("Goal", back_populates="metrics")
+
+
+class ConversationLog(Base):
+    __tablename__ = "conversation_logs"
+
+    log_id: Mapped[str] = mapped_column(String, primary_key=True, default=_uuid)
+    conversation_id: Mapped[str] = mapped_column(String, index=True, nullable=False)
+    goal_id: Mapped[str | None] = mapped_column(
+        ForeignKey("goals.goal_id", ondelete="SET NULL"), nullable=True
+    )
+    role: Mapped[str] = mapped_column(String, nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    token_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+
+    goal: Mapped[Goal | None] = relationship("Goal", back_populates="conversation_logs")
+
+
+class ConversationSummary(Base):
+    __tablename__ = "conversation_summaries"
+
+    summary_id: Mapped[str] = mapped_column(String, primary_key=True, default=_uuid)
+    conversation_id: Mapped[str] = mapped_column(String, index=True, nullable=False)
+    period_start: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    period_end: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    summary_text: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+
+
+class ConversationState(Base):
+    __tablename__ = "conversations"
+
+    conversation_id: Mapped[str] = mapped_column(String, primary_key=True)
+    user_id: Mapped[str | None] = mapped_column(String, nullable=True, index=True)
+    status: Mapped[str] = mapped_column(String, default="ACTIVE")
+    state_blob: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=func.now()
+    )
 
 
 class UserPreference(Base):
@@ -120,6 +230,10 @@ class UserPreference(Base):
     onboarding_stage: Mapped[str] = mapped_column(
         String, default="STAGE_0_ONBOARDING"
     )
+    personality_type: Mapped[str | None] = mapped_column(String, nullable=True)
+    preferred_playstyle: Mapped[str | None] = mapped_column(String, nullable=True)
+    calm_time_window: Mapped[str | None] = mapped_column(Text, nullable=True)
+    disliked_patterns: Mapped[str | None] = mapped_column(Text, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
@@ -158,6 +272,9 @@ class Reminder(Base):
     )
     preferred_time: Mapped[str | None] = mapped_column(String, nullable=True)
     active: Mapped[bool] = mapped_column(Boolean, default=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=func.now()
+    )
     goal: Mapped[Goal] = relationship("Goal", back_populates="reminders")
 
 
@@ -199,6 +316,10 @@ __all__ = [
     "UserPreference",
     "PlayerProgress",
     "Reminder",
+    "Metric",
+    "ConversationState",
+    "ConversationLog",
+    "ConversationSummary",
     "LLMUsageLedger",
     "LLMUsageDaily",
 ]

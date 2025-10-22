@@ -5,6 +5,7 @@
 
 ## 1. 서비스 가동 전 점검
 - `.env`에 `OPENAI_API_KEY`, `GOALER_DATABASE_URL`, `LOOT_REPORT_OUTPUT_DIR` 등 필수 값 설정
+- Redis를 사용하는 경우 `GOALER_STATE_REDIS_URL`을 설정해 대화 상태가 인스턴스 재시작에도 유지되는지 확인
 - LLM 한도 환경 변수(`LLM_MAX_*`, `LLM_LIMIT_REACHED_MESSAGE`)가 목표치에 맞게 설정되었는지 확인
 - `alembic upgrade head` 로 마이그레이션을 최신 상태로 맞춘 뒤 결과 로그를 보관
 - `GOALER_ACTIVE_USER_ID`가 배포 환경의 실제 사용자/세션 ID로 설정되었는지 검증
@@ -18,6 +19,7 @@
 | 빈도 | 수행 항목 | 참고 |
 | --- | --- | --- |
 | 매일 | `logs/report_worker.log`, `logs/llm_usage.log` 확인, 오류 발생 시 재시도 | `docs/LOOT_REPORT_WORKFLOW.md` |
+| 매일 | 대화 로그 요약 워커 실행(`ConversationSummarizer`) 후 요약 생성 여부 확인 | `docs/DATA_FLOW.md` |
 | 매주 | DB 백업(`sqlite3 data/goaler.db .backup data/backups/YYYY-MM-DD.db`) 후 무결성 검증 | `docs/RISK_REGISTER.md` |
 | 매주 | 토큰 사용량 집계(`python tools/generate_loot_report.py --period monthly --usage-log logs/llm_usage.log`)로 비용 체킹 | `docs/ANALYTICS_PLAN.md` |
 | 분기 | Stage 승급/강등 로직 튜닝 회고, `docs/COACH_TUNING_BACKLOG.md` 업데이트 |  |
@@ -46,6 +48,11 @@
 - Slack: `.env`에 `SLACK_BOT_TOKEN`, `SLACK_CHANNEL` 지정 (봇을 채널에 초대 필요), 메시지 템플릿은 `docs/ALERT_TEMPLATES.md`
 - Email/SMS: Phase 5 확장 스코프, Postmark/Twilio 후보. 채널 추가 시 `reminders` 테이블 `channel` enum 업데이트
 - 실패 재시도: 5분 후 3회 재시도, 모두 실패 시 운영 Slack `#goaler-alerts`로 알림
+
+## 6. 개인정보 요청 대응
+- 감정 메모(`mood_note`)는 저장 전 자동 마스킹되며, 운영팀은 노출된 로그를 두 번 확인한다.
+- 사용자 삭제/열람 요청이 들어오면 ① `conversation_logs` → ② `conversation_summaries` → ③ `reports/` 순으로 데이터를 제거하고, 처리 결과를 24시간 이내 사용자에게 회신한다.
+- 민감 로그가 탐지되면 즉시 Slack `#goaler-privacy` 채널에 공유하고, 72시간 내 재발 방지 조치를 문서화한다.
 
 ## 7. 데이터베이스 동시성 · 마이그레이션 계획 (P6 사전 준비)
 - SQLite는 APScheduler 워커와 CLI/앱이 동시에 쓰기 작업을 수행하면 `database is locked` 오류가 발생할 수 있다. 단기적으로는 `timeout` 파라미터와 재시도 래퍼를 두되, Phase 6(운영 개선)에서 PostgreSQL로 이전하는 것을 필수로 한다.
