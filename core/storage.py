@@ -762,6 +762,7 @@ def _auto_upgrade_schema(engine) -> None:
             Base.metadata.tables["conversations"],
         ])
 
+
 __all__ = [
     "SQLAlchemyStorage",
     "create_session",
