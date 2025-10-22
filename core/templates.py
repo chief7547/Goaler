@@ -13,8 +13,9 @@ import yaml
 class TemplateLibrary:
     """Loads quest and metric templates from the project configuration."""
 
-    def __init__(self, config_path: str | None = None) -> None:
-        resolved_path = Path(config_path or os.getenv("GOALER_CONFIG_PATH", "CONFIG.yaml"))
+    def __init__(self, config_path: str | os.PathLike[str] | None = None) -> None:
+        default_path: Path = Path(os.getenv("GOALER_CONFIG_PATH", "CONFIG.yaml"))
+        resolved_path = Path(config_path) if config_path is not None else default_path
         if not resolved_path.exists():
             raise FileNotFoundError(f"CONFIG file not found: {resolved_path}")
         data = yaml.safe_load(resolved_path.read_text(encoding="utf-8")) or {}

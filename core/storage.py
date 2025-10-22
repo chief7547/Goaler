@@ -6,10 +6,11 @@ import json
 import os
 import uuid
 from datetime import datetime, timezone
-from typing import Iterable
+from typing import Iterable, cast
 
 from sqlalchemy import create_engine, select, text, func, delete
 from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.engine import CursorResult
 
 from .models import (
     Base,
@@ -546,7 +547,7 @@ class SQLAlchemyStorage:
 
         result = self.session.execute(delete_stmt)
         self.session.commit()
-        return int(result.rowcount or 0)
+        return int(cast(CursorResult, result).rowcount or 0)
 
     def create_conversation_summary(self, payload: dict) -> dict:
         summary = ConversationSummary(
