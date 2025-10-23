@@ -333,7 +333,7 @@
 ### Inputs
 - `docs/FRONTEND_DESIGN.md`, `docs/UX_FLOW.md`, `docs/UX_CONVO_FLOW.md`, `docs/UX_WIREFRAME_NOTES.md`
 - FastAPI/Flask API 게이트웨이 스펙 (Phase FE-0 산출물)
-- `docs/FX_GUIDE.md` *(애니메이션 사양 문서, FE-6에서 작성)*
+- `docs/FRONTEND_FX_GUIDE.md` *(애니메이션 사양 문서, FE-6에서 작성)*
 
 ### Tasks
 1. **FE-0 API 게이트웨이**  
@@ -361,7 +361,7 @@
    - Storybook 구축 + Chromatic 시각 회귀  
    - Lighthouse(모바일) LCP<3s, axe-core Critical=0 목표
 7. **FE-6 Progressive FX**  
-   - `docs/FX_GUIDE.md` 작성 (트리거/효과/정리 조건 문서화)  
+   - `docs/FRONTEND_FX_GUIDE.md` 작성 (트리거/효과/정리 조건 문서화)  
    - `src/components/fx/`로 애니메이션 컴포넌트 분리, `prefers-reduced-motion` 반영  
    - Storybook에서 효과별 스토리와 QA 체크리스트 제공
 
@@ -374,7 +374,7 @@
 
 ### Artifacts
 - `frontend/` 디렉터리 (Next.js 프로젝트) + Storybook  
-- `docs/FRONTEND_DESIGN.md`, `docs/FX_GUIDE.md`  
+- `docs/FRONTEND_DESIGN.md`, `docs/FRONTEND_FX_GUIDE.md`  
 - QA 로그 (`reports/frontend_e2e_log.md` 등)  
 - 배포 가이드 (`docs/OPERATIONS_SOP.md` 업데이트)
 
@@ -382,7 +382,7 @@
 - [ ] API 게이트웨이와 프런트 타입 정의가 동일 버전(OpenAPI → TS)으로 동기화  
 - [ ] 핵심 화면 5종 Playwright 스크린샷 캡처 및 QA 승인  
 - [ ] Storybook 문서화/Chromatic 회귀 테스트 통과  
-- [ ] `docs/FX_GUIDE.md` 초안 작성, 애니메이션 우선순위 합의  
+- [ ] `docs/FRONTEND_FX_GUIDE.md` 초안 작성, 애니메이션 우선순위 합의  
 - [ ] Vercel/Netlify 프리뷰 + Lighthouse 리포트 공유
 
 ---
