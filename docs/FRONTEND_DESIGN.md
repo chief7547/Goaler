@@ -6,6 +6,10 @@
 ---
 
 ## 1. 제품 목표 요약
+- 기초 디자인 토큰: `docs/FRONTEND_TOKENS.md`
+- API 계약: `docs/FRONTEND_API_CONTRACT.md`
+- 이펙트 규칙: `docs/FRONTEND_FX_GUIDE.md`
+- QA/자동화: `docs/FRONTEND_QA_PLAN.md`
 - CLI로 검증된 목표/퀘스트 루프를 **웹 대시보드 + 대화 UI**로 전환한다.
 - 사용자 시나리오:
   1. 오늘의 추천 행동/진행 단계를 한눈에 보고 바로 실행한다.

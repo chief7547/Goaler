@@ -374,7 +374,7 @@
 
 ### Artifacts
 - `frontend/` 디렉터리 (Next.js 프로젝트) + Storybook  
-- `docs/FRONTEND_DESIGN.md`, `docs/FRONTEND_FX_GUIDE.md`  
+- `docs/FRONTEND_DESIGN.md`, `docs/FRONTEND_TOKENS.md`, `docs/FRONTEND_FX_GUIDE.md`, `docs/FRONTEND_QA_PLAN.md`  
 - QA 로그 (`reports/frontend_e2e_log.md` 등)  
 - 배포 가이드 (`docs/OPERATIONS_SOP.md` 업데이트)
 
@@ -383,6 +383,8 @@
 - [ ] 핵심 화면 5종 Playwright 스크린샷 캡처 및 QA 승인  
 - [ ] Storybook 문서화/Chromatic 회귀 테스트 통과  
 - [ ] `docs/FRONTEND_FX_GUIDE.md` 초안 작성, 애니메이션 우선순위 합의  
+- [ ] `docs/FRONTEND_API_CONTRACT.md` 갱신, API Mock 준비  
+- [ ] `docs/FRONTEND_QA_PLAN.md` 기반으로 Storybook/Playwright 파이프라인 구성  
 - [ ] Vercel/Netlify 프리뷰 + Lighthouse 리포트 공유
 
 ---
