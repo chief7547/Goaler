@@ -12,6 +12,7 @@
    - 목표 생성 → 보스/변주 → 전리품 기록 → 리포트 확인까지 전 UX 플로우
    - Stage 해금 UI/툴 동작 점검 (Stage 0~2)
    - `docs/FRONTEND_FX_GUIDE.md`에 정의된 주요 FX(Stage 승급, 퀘스트 완료, 에너지 경고, 보스 재조정)가 테마/Reduced Motion 모드에서 모두 정상 동작하는지 확인
+   - Storybook 스냅샷 비교(GAME/PRO, Reduced Motion)로 시각적 회귀 테스트 실행
 2. **실시간 운영 시뮬레이션**
    - APScheduler 워커와 웹/CLI 동시 사용 시 DB 락, 로그, 알림 상태 확인
    - Slack/Email 알림 발송, 재시도/에러 핸들링 확인

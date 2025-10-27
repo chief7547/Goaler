@@ -105,6 +105,21 @@ frontend/
 - `FxProvider`가 글로벌 FX 큐(Zustand)를 관리하고, 각 화면은 `FxLayer` 컴포넌트로 효과를 렌더링한다.
 - 모든 FX는 테마 토큰(`theme.fx`)과 접근성 설정(`prefersReducedMotion`)을 고려한다.
 
+### 3.6 Storybook & 테스트 커버리지
+- Storybook 스토리 구조는 `Component/State/Theme/Motion`으로 맞춘다.
+  - 예: `HeroCard/StageUpgrade/Game`, `HeroCard/StageUpgrade/Pro`, `HeroCard/StageUpgrade/Reduced`.
+- 필수 스토리 목록
+  - `AppShell` (Game/Pro, Mobile/Desktop)
+  - `HeroCard` (기본, Stage 승급, 경고)
+  - `QuestCard` (난이도별, 완료 상태)
+  - `ChecklistItem` (기본, 완료, 경고)
+  - `LootChip` (성과/깨달음/감정)
+  - `ChatMessage` (유저/AI/시스템, 로딩)
+  - `BossTimeline` (성공, 경고, 조정 필요)
+  - `ReminderForm` (기본, 실패, 테스트 성공)
+  - FX 전용(`fx_stage_upgrade`, `fx_quest_complete`, `fx_energy_warning`, Reduced 모드)
+- 각 스토리는 `prefersReducedMotion` 토글, 테마 전환 버튼을 Storybook Controls로 제공한다.
+
 컴포넌트는 atomic → organism → template 순으로 예측 가능하게 이름을 붙인다. 스토리북에서 상태(기본/경고/성공), 테마(게임/전문가), 해상도(데스크톱/모바일) 스토리를 제공한다.
 
 ---
@@ -178,6 +193,7 @@ Empty State: 초기 진행 단계 사용자는 “핵심 퀘스트 미리보기�
 - 성장 서사 영역: LLM summary 텍스트 카드 + 공유 버튼 (클릭 시 `fxSlideUp` 모달)
 - 지표 영역: 전리품 분포(도넛 차트), 퀘스트 완료 추이(line chart), 에너지 상태 히트맵
 - 회고 CTA: 다음 주 전략(공격/보완/회복) 선택 (`fxPulse`)
+- Professional 테마에서는 그래프 색상이 Blue tone, 데이터 라벨에 얇은 underline을 추가해 신뢰감을 높인다.
 
 상태 대응
 - 데이터 없음 → “전리품을 남기면 여기에서 이야기를 만들어 드릴게요” 메시지
@@ -192,6 +208,7 @@ Empty State: 초기 진행 단계 사용자는 “핵심 퀘스트 미리보기�
 - 채널 섹션: Slack Webhook, 시간대/요일 선택 (React Hook Form)
 - 테스트 버튼: “테스트 메시지 보내기” → 성공/실패 토스트 + Cyan Pulse
 - 향후 이메일/SMS 확장을 고려해 탭/아코디언 구조 유지
+- 테스트 성공 여부와 최근 알림 상태는 챗봇 대화 패널에 ‘알림 로그’ 메시지로 자동 공유되어 사용자가 진행 흐름을 잃지 않도록 한다.
 
 빈 상태: 알림이 하나도 없을 경우 “알림을 켜두면 챗봇이 잊지 않게 도와드려요” 메시지 + CTA
 
@@ -210,6 +227,9 @@ Empty State: 초기 진행 단계 사용자는 “핵심 퀘스트 미리보기�
 - 테마 전환 (GAME ↔ PROFESSIONAL)
   - 용어, 아이콘, 컬러 팔레트를 `ThemeContext`로 교체 (ex: 보스전 → 핵심 마일스톤)
   - 공용 컴포넌트는 `variant="game" | "pro"` prop으로 스타일 제어
+  - Professional 테마는 저채도 배경(카드 Linear Gradient `#111827`→`#0B1220`), 라인 애니메이션, 데이터 엑센트(파란색 라인 그래프 강조)를 기본으로 한다.
+- 접근성 강화
+  - Reduced Motion 환경에서는 FX 대신 outline/색상 강조만 사용하고, 상태 변화가 텍스트와 아이콘으로도 전달되도록 한다.
 - 접근성 고려
   - 애니메이션은 기본 0.6~1.2초 범위, `prefers-reduced-motion` 시 fade-in만 적용
   - 색맹 친화 팔레트(적/초록 조합 금지), 배지에는 텍스트 라벨 함께 표기
