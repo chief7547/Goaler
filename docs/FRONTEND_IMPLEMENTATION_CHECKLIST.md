@@ -30,7 +30,11 @@
    - 참고: `frontend/app/dashboard/DashboardPage.tsx` (HeroCard, Checklist, QuestCard 샘플)  
    - Stage/콤보/경고 상태를 상태값으로 연결
 
-> 진행 현황: AppShell과 Dashboard 샘플 화면을 `frontend/src/components`에 구현해 레이아웃/FX 루프를 검증했습니다. Chat 이후 화면부터는 다음 단계에서 이어서 구현하세요.
+> 진행 현황: AppShell, Dashboard, Chat, Goals, Reports, Settings를 React Query + MSW 기반으로 연결했습니다. 다음 단계에서는 실제 백엔드 연동 및 세부 UX(반응형 최적화, 접근성 테스트)를 보완하세요.
+- [x] AppShell + 반응형 내비게이션 구현 (`frontend/src/components/AppShell.tsx`)
+- [x] Dashboard Hero/Checklist/Quest 카드 연결 (`frontend/src/components/dashboard/DashboardScreen.tsx`)
+- [x] Chat 대화 흐름 + 컨텍스트 패널 스켈레톤 구현 (`frontend/src/components/chat/*`)
+- [x] Goals/Boss 타임라인, 리포트, 설정 화면 기본 구조 구현 (`frontend/src/components/goals/*`, `frontend/src/components/reports/*`, `frontend/src/components/settings/ReminderForm.tsx`)
 3. **Chat / Goals / Reports / Settings**  
    - `docs/FRONTEND_DESIGN.md` 각 섹션의 레이아웃·모션 규칙을 적용  
    - FX 트리거는 `triggerFx({ id: ..., priority: FX_PRIORITY[...] })` 형식으로 연결  
@@ -45,6 +49,8 @@
 - [ ] 알림 테스트(`/reminders/test`) 결과가 챗봇 대화와 리포트에 반영되는지 확인
 - [ ] 실제 백엔드와 연결 시 Swagger/DTO가 문서와 일치하는지 검증
 
+> 진행 현황: React Query + MSW로 goals/chat/reports/reminders 목업을 연결했습니다. 퀘스트 로그/알림 테스트는 목업 응답으로 검증 가능하며, 실제 백엔드 연동 전 DTO 정합성만 다시 확인하면 됩니다.
+
 ## 4. FX & 모션 적용
 - [ ] Stage 승급 / 퀘스트 완료 / 에너지 경고 / 보스 재조정 / 전리품 기록 FX 구현
 - [ ] Reduced Motion 모드(`prefers-reduced-motion` 또는 설정 토글)에서 `*_reduced` 연출로 대체
@@ -57,11 +63,15 @@
 - [ ] Chromatic(또는 Loki)로 Game/Pro/Reduced Motion 스토리 차이 비교
 - [ ] Storybook Controls에 Theme/Reduced Motion 토글 추가
 
+> 진행 현황: HeroCard/QuestCard/ChecklistItem/BossTimeline/ReminderForm 기본 스토리를 추가했습니다. Reduced Motion·테마 토글은 Storybook 전역 글로벌 컨트롤로 적용되어 있습니다. AppShell/FX 전용 스토리는 추후 상세 구현 시 확장하세요.
+
 ## 6. Playwright & 접근성 테스트
 - [ ] Playwright 시나리오 구성 (`docs/FRONTEND_QA_PLAN.md` 2장)  
   대시보드, 챗, 목표, 리포트, 알림, 모바일 뷰포트 포함
 - [ ] Mock API를 통해 FX 트리거/로그 확인
 - [ ] Lighthouse & axe 검사: 데스크톱/모바일 접근성 ≥ 90
+
+> 메모: 프런트 구조가 마련되었으므로 Playwright 테스트는 `frontend/tests/` 디렉터리에 `dashboard.spec.ts` 등으로 추가하면 됩니다. Mock API 응답은 MSW가 제공하므로 테스트에서 `NEXT_PUBLIC_API_MOCKING`을 활성화하세요.
 
 ## 7. 배포 전 최종 확인
 - [ ] `npm run lint`, `npm run test`, `npm run e2e:ci` 통과

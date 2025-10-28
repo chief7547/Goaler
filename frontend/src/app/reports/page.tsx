@@ -1,14 +1,17 @@
+import { ReportsPageContent } from "../../components/reports/ReportsPageContent";
+
 export default function ReportsPage() {
   return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-semibold" style={{ fontFamily: "var(--font-heading)" }}>
-        리포트 & 회고
-      </h1>
-      <p className="text-sm text-[var(--text-secondary)]">
-        리포트 화면은 <code>docs/FRONTEND_API_CONTRACT.md</code>의 <code>
-        /reports/{"{"}period{"}"}</code> 계약과 <code>docs/FRONTEND_QA_PLAN.md</code>
-        명세를 토대로 차트/스토리/분석 패널을 구현할 예정입니다. 현재는 골격만 남겨 두었습니다.
-      </p>
+    <div className="space-y-6">
+      <header className="space-y-2">
+        <h1 className="text-2xl font-semibold" style={{ fontFamily: "var(--font-heading)" }}>
+          리포트 & 회고
+        </h1>
+        <p className="text-sm text-[var(--text-secondary)]">
+          주간·월간 하이라이트를 확인하고, Stage 승급과 경고 이벤트를 되짚어 보세요.
+        </p>
+      </header>
+      <ReportsPageContent />
     </div>
   );
 }

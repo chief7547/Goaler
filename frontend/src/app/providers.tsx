@@ -1,6 +1,7 @@
 "use client";
 
-import { ReactNode, useEffect } from "react";
+import { ReactNode, useEffect, useState } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { initMocks } from "../lib/initMocks";
 
 interface ProvidersProps {
@@ -8,9 +9,10 @@ interface ProvidersProps {
 }
 
 export const Providers: React.FC<ProvidersProps> = ({ children }) => {
+  const [queryClient] = useState(() => new QueryClient());
   useEffect(() => {
     initMocks();
   }, []);
 
-  return <>{children}</>;
+  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
 };

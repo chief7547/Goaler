@@ -6,6 +6,7 @@ import { ChecklistItem, type ChecklistState } from "../ChecklistItem";
 import { QuestCard } from "../QuestCard";
 import { triggerFx } from "../FxContext";
 import { FX_PRIORITY } from "../../stores/fxStore";
+import { useGoalsOverview } from "../../hooks/useGoalsData";
 
 type ChecklistEntry = {
   id: string;
@@ -53,12 +54,26 @@ const sampleQuests = [
 ];
 
 export const DashboardScreen: React.FC = () => {
+  const { data: goals, isLoading, error } = useGoalsOverview();
+  const heroGoal = goals?.[0];
   const [checklist, setChecklist] = useState<ChecklistEntry[]>(initialChecklist);
   const [completedQuests, setCompletedQuests] = useState<Record<string, boolean>>({});
   const completedCount = useMemo(
     () => checklist.filter((item) => item.state === "completed").length,
     [checklist]
   );
+
+  if (isLoading) {
+    return <p className="text-sm text-[var(--text-secondary)]">대시보드를 불러오는 중입니다…</p>;
+  }
+
+  if (error) {
+    return <p className="text-sm text-red-300">대시보드 데이터를 가져오지 못했습니다.</p>;
+  }
+
+  if (!heroGoal) {
+    return <p className="text-sm text-[var(--text-secondary)]">등록된 목표가 없습니다. 챗에서 목표를 설정해보세요.</p>;
+  }
 
   const handleChecklistToggle = (id: string, nextState: ChecklistState) => {
     setChecklist((prev) =>
@@ -70,11 +85,14 @@ export const DashboardScreen: React.FC = () => {
     <div className="space-y-12">
       <section className="grid gap-6 lg:grid-cols-[minmax(0,_2fr)_minmax(0,_1fr)]">
         <HeroCard
-          stageLabel="Stage 1 · Energy"
-          goalTitle="하프 마라톤 완주"
-          progress={{ completed: completedCount, total: checklist.length }}
-          energyStatus={completedCount >= 2 ? "READY_FOR_BOSS" : "KEEPING_PACE"}
-          nextActionLabel="오늘의 추천 퀘스트 보기"
+          stageLabel={heroGoal.stage.replaceAll("_", " ")}
+          goalTitle={heroGoal.title}
+          progress={{
+            completed: heroGoal.progress.completedSteps,
+            total: heroGoal.progress.totalSteps,
+          }}
+          energyStatus={heroGoal.energyStatus}
+          nextActionLabel={heroGoal.nextAction?.title ?? "추천 퀘스트 보기"}
           onActionClick={() => {
             triggerFx({ id: "stage_upgrade", priority: FX_PRIORITY.stage_upgrade, duration: 1600 });
           }}
@@ -118,7 +136,18 @@ export const DashboardScreen: React.FC = () => {
           </button>
         </div>
         <div className="mt-6 flex flex-wrap gap-6">
-          {sampleQuests.map((quest) => (
+          {(heroGoal.nextAction
+            ? [
+                {
+                  id: heroGoal.nextAction.questId,
+                  title: heroGoal.nextAction.title,
+                  description: "오늘의 추천 퀘스트",
+                  difficulty: "NORMAL" as const,
+                  reason: "챗봇이 제안한 변주",
+                },
+              ]
+            : sampleQuests
+          ).map((quest) => (
             <QuestCard
               key={quest.id}
               title={quest.title}
