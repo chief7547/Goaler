@@ -6,21 +6,21 @@
 ---
 
 ## 0. 사전 준비
-- [ ] `create-next-app --ts`로 새 Next.js(App Router) + TypeScript 프로젝트 생성
-- [ ] Tailwind CSS 설치 및 기본 팔레트 제거 (`docs/FRONTEND_TOKENS.md`의 색상을 tailwind.config에 등록)
-- [ ] 이 레포의 `frontend/` 디렉터리 구조를 복사하거나 참고해 폴더(`components/`, `stores/`, `theme/`, `app/dashboard/`, `stories/`) 생성
-- [ ] 디자인 토큰 적용: `frontend/theme/tokens.ts`
-- [ ] FX 상태 관리 연결: `frontend/stores/fxStore.ts`, `frontend/components/FxContext.tsx`, `frontend/components/FxLayer.tsx`
-- [ ] Storybook 초기화(`npx storybook@latest init --builder vite`) 후 사용 언어/경로 설정
-- [ ] 모킹 도구(MSW 또는 MirageJS) 설치: API 계약 테스트에 사용
+- [x] `create-next-app --ts`로 새 Next.js(App Router) + TypeScript 프로젝트 생성
+- [x] Tailwind CSS 설치 및 기본 팔레트 제거 (`docs/FRONTEND_TOKENS.md`의 색상을 tailwind.config에 등록)
+- [x] 이 레포의 `frontend/` 디렉터리 구조를 복사하거나 참고해 폴더(`components/`, `stores/`, `theme/`, `app/dashboard/`, `stories/`) 생성
+- [x] 디자인 토큰 적용: `frontend/theme/tokens.ts`
+- [x] FX 상태 관리 연결: `frontend/stores/fxStore.ts`, `frontend/components/FxContext.tsx`, `frontend/components/FxLayer.tsx`
+- [x] Storybook 초기화(`npx storybook@latest init --builder vite`) 후 사용 언어/경로 설정
+- [x] 모킹 도구(MSW 또는 MirageJS) 설치: API 계약 테스트에 사용
 
 ## 1. 필독 문서
-- [ ] 전체 화면 설계: `docs/FRONTEND_DESIGN.md`
-- [ ] 이펙트·모션 가이드: `docs/FRONTEND_FX_GUIDE.md`
-- [ ] 디자인 토큰: `docs/FRONTEND_TOKENS.md`
-- [ ] API 계약: `docs/FRONTEND_API_CONTRACT.md`
-- [ ] QA/자동화 계획: `docs/FRONTEND_QA_PLAN.md`
-- [ ] 운영/검증 로드맵: `docs/VALIDATION_PLAN.md`
+- [x] 전체 화면 설계: `docs/FRONTEND_DESIGN.md`
+- [x] 이펙트·모션 가이드: `docs/FRONTEND_FX_GUIDE.md`
+- [x] 디자인 토큰: `docs/FRONTEND_TOKENS.md`
+- [x] API 계약: `docs/FRONTEND_API_CONTRACT.md`
+- [x] QA/자동화 계획: `docs/FRONTEND_QA_PLAN.md`
+- [x] 운영/검증 로드맵: `docs/VALIDATION_PLAN.md`
 
 ## 2. 화면 구현 흐름
 1. **AppShell / 레이아웃**  
@@ -29,6 +29,8 @@
 2. **Dashboard**  
    - 참고: `frontend/app/dashboard/DashboardPage.tsx` (HeroCard, Checklist, QuestCard 샘플)  
    - Stage/콤보/경고 상태를 상태값으로 연결
+
+> 진행 현황: AppShell과 Dashboard 샘플 화면을 `frontend/src/components`에 구현해 레이아웃/FX 루프를 검증했습니다. Chat 이후 화면부터는 다음 단계에서 이어서 구현하세요.
 3. **Chat / Goals / Reports / Settings**  
    - `docs/FRONTEND_DESIGN.md` 각 섹션의 레이아웃·모션 규칙을 적용  
    - FX 트리거는 `triggerFx({ id: ..., priority: FX_PRIORITY[...] })` 형식으로 연결  

@@ -1,14 +1,16 @@
+"use client";
+
 import clsx from "clsx";
 import { colors, typography, radius } from "../theme/tokens";
 import { triggerFx } from "./FxContext";
 import { FX_PRIORITY } from "../stores/fxStore";
+import type { ThemeVariant } from "../theme/themeUtils";
+import { useThemeVariant } from "../theme/ThemeProvider";
 
 type Difficulty = "EASY" | "NORMAL" | "HARD";
 
-type ThemeVariant = "game" | "pro";
-
 interface QuestCardProps {
-  theme: ThemeVariant;
+  theme?: ThemeVariant;
   title: string;
   description?: string;
   difficulty: Difficulty;
@@ -34,11 +36,13 @@ export const QuestCard: React.FC<QuestCardProps> = ({
   onHold,
   onSkip,
 }) => {
+  const { theme: currentTheme } = useThemeVariant();
+  const resolvedTheme = theme ?? currentTheme;
   return (
     <div
       style={{
-        background: colors.background.card[theme],
-        color: colors.text.primary[theme],
+        background: colors.background.card[resolvedTheme],
+        color: colors.text.primary[resolvedTheme],
         borderRadius: radius.lg,
         padding: 20,
         width: 320,
@@ -58,7 +62,7 @@ export const QuestCard: React.FC<QuestCardProps> = ({
             padding: "4px 10px",
             borderRadius: 999,
             background: difficultyMap[difficulty],
-            color: colors.background.surface[theme],
+            color: colors.background.surface[resolvedTheme],
             fontSize: typography.small.fontSize,
             fontWeight: 600,
           }}
@@ -116,8 +120,8 @@ export const QuestCard: React.FC<QuestCardProps> = ({
             borderRadius: 16,
             border: "none",
             cursor: "pointer",
-            background: colors.success[theme],
-            color: colors.background.surface[theme],
+            background: colors.success[resolvedTheme],
+            color: colors.background.surface[resolvedTheme],
             fontWeight: 600,
           }}
           onClick={() => {
@@ -136,7 +140,7 @@ export const QuestCard: React.FC<QuestCardProps> = ({
             borderRadius: 16,
             border: `1px solid rgba(255,255,255,0.12)`,
             background: "transparent",
-            color: colors.text.primary[theme],
+            color: colors.text.primary[resolvedTheme],
             cursor: "pointer",
           }}
           onClick={onHold}
@@ -152,7 +156,7 @@ export const QuestCard: React.FC<QuestCardProps> = ({
             borderRadius: 16,
             border: `1px solid rgba(255,255,255,0.12)`,
             background: "transparent",
-            color: colors.text.primary[theme],
+            color: colors.text.primary[resolvedTheme],
             cursor: "pointer",
           }}
           onClick={onSkip}

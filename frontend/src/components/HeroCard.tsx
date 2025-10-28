@@ -1,13 +1,15 @@
+"use client";
+
 import clsx from "clsx";
 import { colors, typography, shadow, glow } from "../theme/tokens";
 import { triggerFx } from "./FxContext";
 import { FX_PRIORITY } from "../stores/fxStore";
-
-export type ThemeVariant = "game" | "pro";
+import type { ThemeVariant } from "../theme/themeUtils";
+import { useThemeVariant } from "../theme/ThemeProvider";
 export type EnergyStatus = "READY_FOR_BOSS" | "KEEPING_PACE" | "NEEDS_POTION";
 
 interface HeroCardProps {
-  theme: ThemeVariant;
+  theme?: ThemeVariant;
   stageLabel: string;
   goalTitle: string;
   progress: { completed: number; total: number };
@@ -25,18 +27,20 @@ export const HeroCard: React.FC<HeroCardProps> = ({
   nextActionLabel,
   onActionClick,
 }) => {
+  const { theme: currentTheme } = useThemeVariant();
+  const resolvedTheme = theme ?? currentTheme;
   const progressPercent = Math.min(100, Math.round((progress.completed / Math.max(1, progress.total)) * 100));
   const isWarning = energyStatus === "NEEDS_POTION";
 
-  const background = colors.background.card[theme];
+  const background = colors.background.card[resolvedTheme];
 
-  const textPrimary = colors.text.primary[theme];
+  const textPrimary = colors.text.primary[resolvedTheme];
 
-  const surface = colors.background.surface[theme];
+  const surface = colors.background.surface[resolvedTheme];
 
-  const accent = colors.primary[theme];
+  const accent = colors.primary[resolvedTheme];
 
-  const warningColor = colors.warning[theme];
+  const warningColor = colors.warning[resolvedTheme];
 
   return (
     <div
@@ -46,7 +50,7 @@ export const HeroCard: React.FC<HeroCardProps> = ({
         color: textPrimary,
         padding: 24,
         borderRadius: 24,
-        boxShadow: theme === "game" ? shadow.card.game : shadow.card.pro,
+        boxShadow: resolvedTheme === "game" ? shadow.card.game : shadow.card.pro,
         position: "relative",
         overflow: "hidden",
       }}
@@ -58,7 +62,7 @@ export const HeroCard: React.FC<HeroCardProps> = ({
             padding: "6px 12px",
             borderRadius: 999,
             backgroundColor: accent,
-            color: colors.background.surface.game,
+            color: surface,
             fontFamily: typography.caption.fontFamily,
             fontWeight: 600,
             letterSpacing: 0.4,
@@ -69,7 +73,7 @@ export const HeroCard: React.FC<HeroCardProps> = ({
       </div>
       <h1
         style={{
-          fontFamily: typography.titleLg.fontFamily[theme],
+          fontFamily: typography.titleLg.fontFamily[resolvedTheme],
           fontSize: typography.titleLg.fontSize,
           lineHeight: typography.titleLg.lineHeight,
           margin: 0,

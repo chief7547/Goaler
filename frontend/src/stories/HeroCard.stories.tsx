@@ -1,21 +1,10 @@
+/* eslint-disable storybook/no-renderer-packages */
 import type { Meta, StoryObj } from "@storybook/react";
 import { HeroCard } from "../components/HeroCard";
-import { FxProvider } from "../components/FxContext";
-import { FxLayer } from "../components/FxLayer";
 
 const meta: Meta<typeof HeroCard> = {
   title: "HeroCard",
   component: HeroCard,
-  decorators: [
-    (Story, context) => (
-      <FxProvider reducedMotion={context.globals.reducedMotion}>
-        <div style={{ position: "relative", padding: 32, background: "#0B1026" }}>
-          <FxLayer />
-          <Story />
-        </div>
-      </FxProvider>
-    ),
-  ],
   args: {
     stageLabel: "Stage 1 · Energy",
     goalTitle: "하프 마라톤 완주",

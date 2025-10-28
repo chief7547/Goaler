@@ -1,13 +1,15 @@
+"use client";
+
 import { colors, typography } from "../theme/tokens";
 import { triggerFx } from "./FxContext";
 import { FX_PRIORITY } from "../stores/fxStore";
+import type { ThemeVariant } from "../theme/themeUtils";
+import { useThemeVariant } from "../theme/ThemeProvider";
 
-type ThemeVariant = "game" | "pro";
-
-type ChecklistState = "pending" | "completed" | "deferred" | "skipped";
+export type ChecklistState = "pending" | "completed" | "deferred" | "skipped";
 
 interface ChecklistItemProps {
-  theme: ThemeVariant;
+  theme?: ThemeVariant;
   title: string;
   subtitle?: string;
   state?: ChecklistState;
@@ -21,6 +23,8 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
   state = "pending",
   onToggle,
 }) => {
+  const { theme: currentTheme } = useThemeVariant();
+  const resolvedTheme = theme ?? currentTheme;
   const isCompleted = state === "completed";
 
   return (
@@ -34,7 +38,7 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
         background: isCompleted
           ? "rgba(44, 229, 167, 0.12)"
           : "rgba(255, 255, 255, 0.06)",
-        color: colors.text.primary[theme],
+        color: colors.text.primary[resolvedTheme],
       }}
     >
       <button
@@ -44,8 +48,8 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
           width: 28,
           height: 28,
           borderRadius: 8,
-          border: `2px solid ${colors.primary[theme]}`,
-          background: isCompleted ? colors.success[theme] : "transparent",
+          border: `2px solid ${colors.primary[resolvedTheme]}`,
+          background: isCompleted ? colors.success[resolvedTheme] : "transparent",
           cursor: "pointer",
         }}
         onClick={() => {
