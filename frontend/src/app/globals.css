@@ -1,0 +1,29 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--surface, #0b1026);
+  color: var(--text-primary, #e5e9ff);
+  font-family: var(--font-body, var(--font-geist-sans)), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+button {
+  font: inherit;
+}
+
+.fx-layer [data-fx] {
+  animation-duration: inherit;
+}
