@@ -53,6 +53,8 @@ PYTHONPATH=. pytest
 cd frontend
 npm run lint
 npm run build
+# Storybook 회귀 테스트 (FX 포함)
+npm run test:stories
 # Playwright나 기타 E2E는 필요 시 `npx playwright test`
 ```
 

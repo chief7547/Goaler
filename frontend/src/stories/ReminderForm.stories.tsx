@@ -20,8 +20,8 @@ const MockProvider = ({ children }: { children: ReactNode }) => {
   ]);
 
   useEffect(() => {
-    const originalFetch = global.fetch;
-    global.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = typeof input === "string" ? input : input.toString();
       if (url.includes("/reminders/test")) {
         return new Response(JSON.stringify({ ok: true, referenceId: "story-test" }), { status: 200 });
@@ -32,7 +32,7 @@ const MockProvider = ({ children }: { children: ReactNode }) => {
       return originalFetch(input, init);
     };
     return () => {
-      global.fetch = originalFetch;
+      globalThis.fetch = originalFetch;
     };
   }, []);
 
