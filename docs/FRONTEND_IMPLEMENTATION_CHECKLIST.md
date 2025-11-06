@@ -52,8 +52,8 @@
 > 진행 현황: 실 서버가 `/api/v1` 경로로 제공되며 기본 React Query 호출이 연동되었습니다. MSW는 개발용으로 남겨두고, DTO 정합성과 세부 동작 검증을 계속 보강해야 합니다.
 
 ## 4. FX & 모션 적용
-- [ ] Stage 승급 / 퀘스트 완료 / 에너지 경고 / 보스 재조정 / 전리품 기록 FX 구현
-- [ ] Reduced Motion 모드(`prefers-reduced-motion` 또는 설정 토글)에서 `*_reduced` 연출로 대체
+- [x] Stage 승급 / 퀘스트 완료 / 에너지 경고 / 보스 재조정 / 전리품 기록 FX 구현
+- [x] Reduced Motion 모드(`prefers-reduced-motion` 또는 설정 토글)에서 `*_reduced` 연출로 대체
 - [ ] FX 큐 우선순위/중복 제한 (`frontend/stores/fxStore.ts`) 테스트
 - [ ] Professional 테마에서는 라인 애니메이션, 저채도 색상 적용
 
