@@ -9,6 +9,8 @@ python -m venv .venv
 source .venv/bin/activate  # Windows는 .venv\Scripts\activate
 pip install -r requirements.txt
 python tools/preflight.py --entry VIBECODE_ENTRY.md --init-lock-if-missing --check-secrets
+# REST API 서버를 실행하려면 (프론트엔드와 연동용)
+GOALER_ACTIVE_USER_ID=demo-user python api.py
 # Slack 알림까지 테스트하려면 `.env`에 `OPENAI_API_KEY`, `SLACK_BOT_TOKEN`, `SLACK_CHANNEL`을 추가하세요.
 # LLM 일일 사용 한도를 설정하려면 `LLM_MAX_DAILY_TOKENS`, `LLM_MAX_DAILY_TOKENS_PER_USER`
 # `LLM_MAX_DAILY_REQUESTS`, `LLM_MAX_DAILY_REQUESTS_PER_USER`, `LLM_LIMIT_REACHED_MESSAGE`
@@ -33,14 +35,25 @@ GOALER_USE_MOCK=false python app.py
 - `app.py`: 챗봇 진입점. mock/실전 모드를 자동 전환하고, LLM이 내린 함수 호출을 `GoalSettingAgent`에 위임합니다.
 - `core/agent.py`: 목표 생성, 메트릭 추가, 동기 기록, 마무리까지 담당하는 비즈니스 로직.
 - `core/state_manager.py`: 대화 중간 상태를 메모리에 저장했다가 종료 시 정리합니다.
-- (계획) `core/models.py`: SQLAlchemy 모델 정의. 현재는 저장소 계층에서 직접 스키마를 참조하며, 향후 모델 클래스를 도입할 예정입니다.
+- `core/models.py`: SQLAlchemy 기반 도메인 모델 정의가 완료되어 있으며, 저장소 계층과 함께 ORM으로 데이터 구조를 관리합니다.
 - `core/coach.py`: COACH_TONE_GUIDE에 기반한 응답 템플릿 로직을 담당합니다.
 - `core/storage.py`: 현재는 SQLAlchemy 기반으로 보스전/퀘스트/전리품 로그를 관리하며, 설정된 DB URL에 따라 인메모리/파일형 SQLite를 선택합니다.
 - `tests/test_core.py`, `tests/test_e2e_conversation.py`: 단위 테스트와 통합 테스트로 로직이 예상대로 움직이는지 검증합니다.
+- `api.py`: Flask 기반 REST API. 프런트엔드가 사용하는 `/api/v1/...` 엔드포인트를 제공합니다.
 
 ## 테스트
 ```bash
+# 백엔드 (스토리지 + API)
+PYTHONPATH=. pytest tests/test_storage_extensions.py tests/test_api.py
+
+# 전체 테스트
 PYTHONPATH=. pytest
+
+# 프런트엔드 품질 검사
+cd frontend
+npm run lint
+npm run build
+# Playwright나 기타 E2E는 필요 시 `npx playwright test`
 ```
 
 ## 데이터 저장 전략

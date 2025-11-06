@@ -44,12 +44,12 @@
    - Stage 승급 Aura는 모바일에서 Hero 카드에만 적용(헤더 오버플로 방지)
 
 ## 3. API 연동 (Mock → 실제)
-- [ ] `docs/FRONTEND_API_CONTRACT.md`의 엔드포인트/스키마로 Mock 서버 작성 (MSW 추천)
-- [ ] 퀘스트 로그 저장 시 `sanitizeMoodNote`가 작동하는지 확인 (`core/privacy.py` 참고)
-- [ ] 알림 테스트(`/reminders/test`) 결과가 챗봇 대화와 리포트에 반영되는지 확인
+- [x] `docs/FRONTEND_API_CONTRACT.md`의 엔드포인트/스키마와 실 서버(`/api/v1`)를 연결하고, 필요 시 `NEXT_PUBLIC_API_BASE_URL` 환경 변수로 호스트를 지정
+- [x] 퀘스트 로그 저장 시 `sanitizeMoodNote`가 작동하는지 확인 (`core/privacy.py` 참고)
+- [x] 알림 테스트(`/reminders/test`) 결과가 챗봇 대화와 리포트에 반영되는지 확인
 - [ ] 실제 백엔드와 연결 시 Swagger/DTO가 문서와 일치하는지 검증
 
-> 진행 현황: React Query + MSW로 goals/chat/reports/reminders 목업을 연결했습니다. 퀘스트 로그/알림 테스트는 목업 응답으로 검증 가능하며, 실제 백엔드 연동 전 DTO 정합성만 다시 확인하면 됩니다.
+> 진행 현황: 실 서버가 `/api/v1` 경로로 제공되며 기본 React Query 호출이 연동되었습니다. MSW는 개발용으로 남겨두고, DTO 정합성과 세부 동작 검증을 계속 보강해야 합니다.
 
 ## 4. FX & 모션 적용
 - [ ] Stage 승급 / 퀘스트 완료 / 에너지 경고 / 보스 재조정 / 전리품 기록 FX 구현

@@ -7,7 +7,7 @@ import {
   type ReminderTestResponse,
 } from "./types";
 
-const BASE_URL = "/api/v1";
+const BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "/api/v1").replace(/\/$/, "");
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${BASE_URL}${path}`, {

@@ -103,3 +103,27 @@ def test_mood_note_sanitized(storage):
     )
     assert "[민감정보]" in log["mood_note"]
     assert "test@example.com" not in log["mood_note"]
+
+
+def test_list_goals_and_related_entities(storage):
+    goal = storage.create_goal({"title": "List Goal", "user_id": "user-list"})
+    storage.create_goal({"title": "Other Goal", "user_id": "other"})
+    goals = storage.list_goals(user_id="user-list")
+    assert len(goals) == 1
+    assert goals[0]["goal_id"] == goal["goal_id"]
+
+    quest = storage.create_quest(goal["goal_id"], {"title": "Checklist"})
+    quests = storage.list_quests(goal["goal_id"])
+    assert quests[0]["quest_id"] == quest["quest_id"]
+
+    storage.create_reminder(
+        {
+            "goal_id": goal["goal_id"],
+            "channel": "slack",
+            "frequency": "weekly",
+            "preferred_time": "08:00",
+        }
+    )
+    reminders = storage.list_reminders(goal_id=goal["goal_id"])
+    assert len(reminders) == 1
+    assert reminders[0]["goal_id"] == goal["goal_id"]
