@@ -107,6 +107,22 @@ body[data-theme="pro"] .fx-stage-upgrade {
   );
 }
 
+body[data-theme="pro"] .fx-stage-upgrade::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(
+      135deg,
+      rgba(59, 130, 246, 0.05) 0,
+      rgba(59, 130, 246, 0.05) 12px,
+      rgba(15, 23, 42, 0) 12px,
+      rgba(15, 23, 42, 0) 24px
+    );
+  border-radius: 24px;
+}
+
 .fx-stage-upgrade-reduced {
   position: absolute;
   inset: 10%;
@@ -141,6 +157,21 @@ body[data-theme="pro"] .fx-stage-upgrade-reduced {
   border-radius: 50%;
   border: 2px dashed rgba(255, 255, 255, 0.6);
   animation: fxBurst 520ms cubic-bezier(0.34, 0.97, 0.64, 1) 1 forwards;
+}
+
+body[data-theme="pro"] .fx-quest-complete {
+  background: radial-gradient(
+    circle,
+    rgba(37, 99, 235, 0.2),
+    rgba(37, 99, 235, 0)
+  );
+  border: 1px solid rgba(59, 130, 246, 0.35);
+}
+
+body[data-theme="pro"] .fx-quest-complete::after {
+  border-style: solid;
+  border-color: rgba(148, 163, 184, 0.4);
+  animation: fxBurst 480ms ease-out 1 forwards;
 }
 
 .fx-quest-complete-reduced {
@@ -247,6 +278,22 @@ body[data-theme="pro"] .fx-stage-upgrade-reduced {
   background: rgba(255, 209, 102, 0.9);
   animation: fxChipFloat 1.2s ease-out 1 forwards;
   position: relative;
+}
+
+body[data-theme="pro"] .fx-loot-record span {
+  color: rgba(226, 232, 240, 0.9);
+  background: rgba(59, 130, 246, 0.18);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+body[data-theme="pro"] .fx-loot-record span:nth-child(2) {
+  background: rgba(14, 165, 233, 0.18);
+  border-color: rgba(14, 165, 233, 0.28);
+}
+
+body[data-theme="pro"] .fx-loot-record span:nth-child(3) {
+  background: rgba(168, 85, 247, 0.16);
+  border-color: rgba(168, 85, 247, 0.26);
 }
 
 .fx-loot-record span:nth-child(2) {

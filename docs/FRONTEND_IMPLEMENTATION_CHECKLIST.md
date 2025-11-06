@@ -54,8 +54,8 @@
 ## 4. FX & 모션 적용
 - [x] Stage 승급 / 퀘스트 완료 / 에너지 경고 / 보스 재조정 / 전리품 기록 FX 구현
 - [x] Reduced Motion 모드(`prefers-reduced-motion` 또는 설정 토글)에서 `*_reduced` 연출로 대체
-- [ ] FX 큐 우선순위/중복 제한 (`frontend/stores/fxStore.ts`) 테스트
-- [ ] Professional 테마에서는 라인 애니메이션, 저채도 색상 적용
+- [x] FX 큐 우선순위/중복 제한 (`frontend/stores/fxStore.ts`) 테스트
+- [x] Professional 테마에서는 라인 애니메이션, 저채도 색상 적용
 
 ## 5. Storybook & 시각 회귀
 - [ ] Storybook 스토리 작성 (목록: `docs/FRONTEND_QA_PLAN.md` 1장)  
