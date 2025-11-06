@@ -230,14 +230,12 @@ def _serialize_goal_summary(
             "due": None,
         }
     theme_preference = prefs.get("theme_preference", "GAME")
-    completed_logs = storage.list_recent_quest_logs(goal["goal_id"], limit=50)
-    completed_count = sum(1 for log in completed_logs if log.get("outcome") == "COMPLETED")
     return {
         "goalId": goal["goal_id"],
         "title": goal["title"],
         "stage": stage_label,
         "progress": {
-            "completedSteps": completed_count,
+            "completedSteps": completed_steps,
             "totalSteps": total_steps,
         },
         "energyStatus": energy_status or "KEEPING_PACE",
