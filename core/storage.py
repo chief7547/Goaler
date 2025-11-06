@@ -111,6 +111,21 @@ class SQLAlchemyStorage:
             return None
         return self._goal_to_dict(goal)
 
+    def list_goals(
+        self,
+        *,
+        user_id: str | None = None,
+        status: str | None = None,
+    ) -> list[dict]:
+        stmt = select(Goal)
+        if user_id:
+            stmt = stmt.where(Goal.user_id == user_id)
+        if status and status.lower() != "all":
+            stmt = stmt.where(Goal.status == status.upper())
+        stmt = stmt.order_by(Goal.created_at.desc())
+        goals = self.session.scalars(stmt).all()
+        return [self._goal_to_dict(goal) for goal in goals]
+
     def update_goal(self, goal_id: str, payload: dict) -> dict | None:
         goal = self.session.get(Goal, goal_id)
         if goal is None:
@@ -427,6 +442,15 @@ class SQLAlchemyStorage:
         self.session.refresh(quest)
         return self._quest_to_dict(quest)
 
+    def list_quests(self, goal_id: str) -> list[dict]:
+        stmt = (
+            select(Quest)
+            .where(Quest.goal_id == goal_id)
+            .order_by(Quest.created_at.desc())
+        )
+        quests = self.session.scalars(stmt).all()
+        return [self._quest_to_dict(quest) for quest in quests]
+
     def get_quest(self, quest_id: str) -> dict | None:
         quest = self.session.get(Quest, quest_id)
         if not quest:
@@ -618,6 +642,21 @@ class SQLAlchemyStorage:
             .where(Reminder.next_run_at.is_not(None))
             .where(Reminder.next_run_at <= now)
         )
+        reminders = self.session.scalars(stmt).all()
+        return [self._reminder_to_dict(reminder) for reminder in reminders]
+
+    def list_reminders(
+        self,
+        *,
+        user_id: str | None = None,
+        goal_id: str | None = None,
+    ) -> list[dict]:
+        stmt = select(Reminder)
+        if goal_id:
+            stmt = stmt.where(Reminder.goal_id == goal_id)
+        if user_id:
+            stmt = stmt.join(Goal, Reminder.goal_id == Goal.goal_id).where(Goal.user_id == user_id)
+        stmt = stmt.order_by(Reminder.updated_at.desc())
         reminders = self.session.scalars(stmt).all()
         return [self._reminder_to_dict(reminder) for reminder in reminders]
 

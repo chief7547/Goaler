@@ -32,7 +32,9 @@ def compute_window(
     period: str, *, now: datetime | None = None
 ) -> tuple[datetime, datetime]:
     now = now or datetime.now(timezone.utc)
-    if period == "monthly":
+    if period == "weekly":
+        start = now - timedelta(days=7)
+    elif period == "monthly":
         start = now - timedelta(days=30)
     elif period == "quarterly":
         start = now - timedelta(days=90)
@@ -82,6 +84,7 @@ def gather_summary(
     *,
     period: str,
     user_id: str | None = None,
+    goal_id: str | None = None,
     now: datetime | None = None,
     usage_log: Path | None = None,
 ) -> dict[str, Any]:
@@ -90,6 +93,8 @@ def gather_summary(
     logs_stmt = select(QuestLog, Goal).join(Goal, Goal.goal_id == QuestLog.goal_id)
     if user_id:
         logs_stmt = logs_stmt.where(Goal.user_id == user_id)
+    if goal_id:
+        logs_stmt = logs_stmt.where(Goal.goal_id == goal_id)
     logs_stmt = logs_stmt.where(QuestLog.occurred_at >= start).where(
         QuestLog.occurred_at <= end
     )
@@ -127,11 +132,13 @@ def gather_summary(
 
     usage_summary = summarize_usage(usage_log or DEFAULT_USAGE_LOG, start)
 
+    generated_at = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
+
     return {
         "period": period,
         "start": start,
         "end": end,
-        "generated_at": (now or datetime.utcnow()).isoformat(),
+        "generated_at": generated_at.isoformat(),
         "user_label": user_id or "all-users",
         "loot_counts": loot_counts,
         "loot_samples": loot_samples,
