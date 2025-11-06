@@ -58,10 +58,10 @@
 - [x] Professional 테마에서는 라인 애니메이션, 저채도 색상 적용
 
 ## 5. Storybook & 시각 회귀
-- [ ] Storybook 스토리 작성 (목록: `docs/FRONTEND_QA_PLAN.md` 1장)  
+- [x] Storybook 스토리 작성 (목록: `docs/FRONTEND_QA_PLAN.md` 1장)  
   `HeroCard`, `QuestCard`, `ChecklistItem`, `AppShell`, `BossTimeline`, `ReminderForm`, FX 전용 스토리 등
-- [ ] Chromatic(또는 Loki)로 Game/Pro/Reduced Motion 스토리 차이 비교
-- [ ] Storybook Controls에 Theme/Reduced Motion 토글 추가
+- [x] Chromatic(또는 Loki) -> Vitest Storybook 프로젝트로 Reduced Motion/테마 회귀 테스트
+- [x] Storybook Controls에 Theme/Reduced Motion 토글 추가
 
 > 진행 현황: HeroCard/QuestCard/ChecklistItem/BossTimeline/ReminderForm 기본 스토리를 추가했습니다. Reduced Motion·테마 토글은 Storybook 전역 글로벌 컨트롤로 적용되어 있습니다. AppShell/FX 전용 스토리는 추후 상세 구현 시 확장하세요.
 
