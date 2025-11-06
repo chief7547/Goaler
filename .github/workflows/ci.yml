@@ -73,3 +73,31 @@ jobs:
           python -m pip install -r requirements-dev.txt
       - name: Verify golden files
         run: python tools/golden_check.py
+
+  frontend:
+    runs-on: ubuntu-latest
+    needs: [lint, typecheck, pytest]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install dependencies
+        run: npm ci
+        working-directory: frontend
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+        working-directory: frontend
+      - name: Lint (frontend)
+        run: npm run lint
+        working-directory: frontend
+      - name: Vitest unit tests
+        run: npm run test:unit
+        working-directory: frontend
+      - name: Storybook regression tests
+        run: npm run test:stories
+        working-directory: frontend
+      - name: Build (Next.js)
+        run: npm run build
+        working-directory: frontend

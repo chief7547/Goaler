@@ -52,6 +52,7 @@ PYTHONPATH=. pytest
 # 프런트엔드 품질 검사
 cd frontend
 npm run lint
+npm run test:unit
 npm run build
 # Storybook 회귀 테스트 (FX 포함)
 npm run test:stories
