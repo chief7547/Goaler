@@ -68,13 +68,13 @@
 ## 6. Playwright & 접근성 테스트
 - [ ] Playwright 시나리오 구성 (`docs/FRONTEND_QA_PLAN.md` 2장)  
   대시보드, 챗, 목표, 리포트, 알림, 모바일 뷰포트 포함
-- [ ] Mock API를 통해 FX 트리거/로그 확인
+- [x] Mock API를 통해 FX 트리거/로그 확인
 - [ ] Lighthouse & axe 검사: 데스크톱/모바일 접근성 ≥ 90
 
 > 메모: 프런트 구조가 마련되었으므로 Playwright 테스트는 `frontend/tests/` 디렉터리에 `dashboard.spec.ts` 등으로 추가하면 됩니다. Mock API 응답은 MSW가 제공하므로 테스트에서 `NEXT_PUBLIC_API_MOCKING`을 활성화하세요.
 
 ## 7. 배포 전 최종 확인
-- [ ] `npm run lint`, `npm run test`, `npm run e2e:ci` 통과
+- [x] `npm run lint`, `npm run test:unit`, `npm run test:stories`, `npm run test:e2e`, `npm run build` 통과
 - [ ] Storybook 스냅샷 최신화 및 리뷰 승인
 - [ ] Playwright 스크린샷 승인 (경고/Reduced Motion 상태 포함)
 - [ ] FX 로그(`fxStore`)가 Stage/경고 이벤트를 기록하는지 확인 (Playwright로 API 호출)

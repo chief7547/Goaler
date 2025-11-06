@@ -56,8 +56,11 @@ npm run test:unit
 npm run build
 # Storybook 회귀 테스트 (FX 포함)
 npm run test:stories
-# Playwright나 기타 E2E는 필요 시 `npx playwright test`
+# Playwright E2E (mocking 기반)
+npm run test:e2e
 ```
+
+> `npm run test:e2e`는 `playwright.config.ts`의 `webServer` 설정을 사용해 Next.js 개발 서버를 자동으로 띄웁니다. 실 API와 연동하려면 `NEXT_PUBLIC_API_MOCKING` 값을 조정하고 `baseURL`을 원하는 주소로 바꾸세요.
 
 ## 데이터 저장 전략
 - **MVP**: SQLite를 기본 저장소로 사용합니다. 별도 서버가 필요 없고 파일 하나로 목표·메트릭·대화 기록(선택)을 영구 보관할 수 있습니다.
